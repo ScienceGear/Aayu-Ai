@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Aayu AI Premium Design System - Elder Care Application */
+
+@layer base {
+  :root {
+    /* Primary - Calming Blues */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 239 84% 75%;
+    --primary-dark: 239 84% 55%;
+    
+    /* Secondary - Warm Oranges */
+    --secondary: 38 92% 50%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Accent - Soft Purple */
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Background & Foreground */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    /* Muted */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    /* Border */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 239 84% 67%;
+    
+    /* Status Colors */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+    
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Sidebar */
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 239 84% 67%;
+    
+    /* Chart Colors */
+    --chart-1: 239 84% 67%;
+    --chart-2: 38 92% 50%;
+    --chart-3: 160 84% 39%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 0 84% 60%;
+    
+    /* Radius */
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Primary */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 239 84% 75%;
+    --primary-dark: 239 84% 55%;
+    
+    /* Secondary */
+    --secondary: 38 92% 50%;
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Accent */
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Background & Foreground */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    
+    /* Card */
+    --card: 222 47% 15%;
+    --card-foreground: 210 40% 98%;
+    
+    /* Muted */
+    --muted: 222 47% 20%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* Border */
+    --border: 222 47% 25%;
+    --input: 222 47% 25%;
+    --ring: 239 84% 67%;
+    
+    /* Popover */
+    --popover: 222 47% 15%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Destructive */
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Sidebar */
+    --sidebar-background: 222 47% 13%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 25%;
+    --sidebar-ring: 239 84% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  
+  /* Text Size Classes for Accessibility */
+  .text-size-medium {
+    font-size: 16px;
+  }
+  
+  .text-size-large {
+    font-size: 20px;
+  }
+  
+  .text-size-xlarge {
+    font-size: 24px;
+  }
+}
+
+@layer utilities {
+  /* Premium Gradient Backgrounds */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(239 84% 67%), hsl(262 83% 58%));
+  }
+  
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, hsl(38 92% 50%), hsl(25 95% 53%));
+  }
+  
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, hsl(239 84% 67% / 0.1), hsl(262 83% 58% / 0.1));
+  }
+  
+  /* Pulse Animation for SOS */
+  .pulse-danger {
+    animation: pulse-danger 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse-danger {
+    0%, 100% {
+      box-shadow: 0 0 0 0 hsl(0 84% 60% / 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 15px hsl(0 84% 60% / 0);
+    }
+  }
+  
+  /* Card Hover Effect */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+  
+  .card-hover:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+  
+  /* Floating Animation */
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  /* Breathing Animation for Meditation */
+  .breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+  
+  @keyframes breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 1;
+    }
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
