@@ -2,7 +2,7 @@
 
 Your trusted elder care companion
 
-## Version 0.3
+## Version 0.2.1
 
 ### Features
 - Elder care dashboard
