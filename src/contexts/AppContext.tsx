@@ -75,6 +75,15 @@ export interface Call {
   startTime?: string;
 }
 
+export interface Activity {
+  id: string;
+  userId: string;
+  title: string;
+  completed: boolean;
+  dueTime: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
 interface Settings {
   textSize: TextSize;
   theme: 'light' | 'dark';
@@ -116,6 +125,11 @@ interface AppContextType {
   incomingCall: { callId: string, callerId: string, callerName: string, signal: any, type: 'voice' | 'video' } | null;
   answerCall: () => void;
   rejectCall: () => void;
+
+  activities: Activity[];
+  addActivity: (activity: Activity) => void;
+  removeActivity: (id: string) => void;
+  toggleActivityStatus: (id: string) => void;
 }
 
 const defaultSettings: Settings = {
@@ -135,6 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ callId: string, callerId: string, callerName: string, signal: any, type: 'voice' | 'video' } | null>(null);
@@ -469,6 +484,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIncomingCall(null);
   };
 
+  // --- Activity Management ---
+  const addActivity = (activity: Activity) => {
+    setActivities(prev => [...prev, activity]);
+    toast({ title: 'Activity Added', description: 'New task scheduled.' });
+  };
+
+  const removeActivity = (id: string) => {
+    setActivities(prev => prev.filter(a => a.id !== id));
+  };
+
+  const toggleActivityStatus = (id: string) => {
+    setActivities(prev => prev.map(a => a.id === id ? { ...a, completed: !a.completed } : a));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -477,7 +506,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         exercises, medicines, addExercise, removeExercise, toggleExercise,
         addMedicine, removeMedicine, toggleMedicine, updateUser,
         messages, sendMessage, activeCall, startCall, endCall,
-        incomingCall, answerCall, rejectCall
+        incomingCall, answerCall, rejectCall,
+        activities, addActivity, removeActivity, toggleActivityStatus
       }}
     >
       {children}

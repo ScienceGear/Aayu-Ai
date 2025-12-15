@@ -35,21 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Mock data
-const mockActivities = [
-  { id: '1', title: 'Morning Walk', completed: false, dueTime: '7:00 AM', priority: 'high' as const },
-  { id: '2', title: 'Take Blood Pressure Reading', completed: true, dueTime: '8:00 AM', priority: 'high' as const },
-  { id: '3', title: 'Call Daughter', completed: false, dueTime: '10:00 AM', priority: 'medium' as const },
-  { id: '4', title: 'Yoga Session', completed: false, dueTime: '5:00 PM', priority: 'low' as const },
-  { id: '5', title: 'Evening Walk', completed: false, dueTime: '6:30 PM', priority: 'medium' as const },
-];
-
-const mockUpcomingMedicines = [
-  { id: '1', name: 'Metformin 500mg', dosage: '1 tablet', time: '12:30 PM', status: 'pending', withFood: true },
-  { id: '2', name: 'Amlodipine 5mg', dosage: '1 tablet', time: '2:00 PM', status: 'pending', withFood: false },
-  { id: '3', name: 'Vitamin D', dosage: '1 capsule', time: '8:00 PM', status: 'pending', withFood: true },
-  { id: '4', name: 'Atorvastatin', dosage: '1 tablet', time: '9:00 PM', status: 'pending', withFood: false },
-];
-
+// Mock data removed in favor of AppContext
 const moodOptions = [
   { icon: MoodGreat, label: 'Great', value: 'great', color: 'text-success', bg: 'bg-success/10', activeBg: 'bg-success' },
   { icon: MoodOkay, label: 'Okay', value: 'okay', color: 'text-warning', bg: 'bg-warning/10', activeBg: 'bg-warning' },
@@ -59,15 +45,23 @@ const moodOptions = [
 ];
 
 export default function ElderDashboard() {
-  const { user, settings } = useApp();
+  const { user, settings, activities, addActivity, removeActivity, toggleActivityStatus, medicines, toggleMedicine } = useApp();
   const t = useTranslation(settings.language);
   const { toast } = useToast();
   const [greeting, setGreeting] = useState('');
-  const [activities, setActivities] = useState(mockActivities);
+  // Filter data for current user
+  const myActivities = activities.filter(a => a.userId === user?.id);
+  // Sort by time
+  const sortedActivities = [...myActivities].sort((a, b) => a.dueTime.localeCompare(b.dueTime));
+
+  const myMedicines = medicines.filter(m => m.userId === user?.id);
+  // Sort medicines by time
+  const sortedMedicines = [...myMedicines].sort((a, b) => a.time.localeCompare(b.time));
+
   const [waterGlasses, setWaterGlasses] = useState(3);
   const [waterGoal, setWaterGoal] = useState(8);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const deletedActivityRef = useRef<{ item: any, index: number } | null>(null);
+  const deletedActivityRef = useRef<{ item: any } | null>(null);
 
   // Add Activity State
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
@@ -96,25 +90,21 @@ export default function ElderDashboard() {
   }, [t]);
 
   const toggleActivity = (id: string) => {
-    setActivities(prev =>
-      prev.map(activity =>
-        activity.id === id ? { ...activity, completed: !activity.completed } : activity
-      )
-    );
+    toggleActivityStatus(id);
   };
 
   const handleAddActivity = () => {
-    if (!newActivityTitle || !newActivityTime) return;
+    if (!newActivityTitle || !newActivityTime || !user) return;
 
-    const newActivity = {
+    addActivity({
       id: Date.now().toString(),
+      userId: user.id,
       title: newActivityTitle,
       completed: false,
       dueTime: newActivityTime,
-      priority: 'medium' as const,
-    };
+      priority: 'medium',
+    });
 
-    setActivities(prev => [...prev, newActivity]);
     setNewActivityTitle('');
     setNewActivityTime('');
     setIsAddActivityOpen(false);
@@ -125,11 +115,11 @@ export default function ElderDashboard() {
   };
 
   const handleDeleteActivity = (id: string) => {
-    const index = activities.findIndex(a => a.id === id);
-    const item = activities[index];
-    deletedActivityRef.current = { item, index };
+    const item = myActivities.find(a => a.id === id);
+    if (!item) return;
 
-    setActivities(prev => prev.filter(a => a.id !== id));
+    deletedActivityRef.current = { item };
+    removeActivity(id);
 
     toast({
       title: "Activity Deleted",
@@ -144,12 +134,7 @@ export default function ElderDashboard() {
 
   const handleUndoDelete = () => {
     if (deletedActivityRef.current) {
-      const { item, index } = deletedActivityRef.current;
-      setActivities(prev => {
-        const newActivities = [...prev];
-        newActivities.splice(index, 0, item);
-        return newActivities;
-      });
+      addActivity(deletedActivityRef.current.item);
       deletedActivityRef.current = null;
       toast({ title: "Restored", description: "Activity restored successfully." });
     }
@@ -173,8 +158,8 @@ export default function ElderDashboard() {
     });
   };
 
-  const completedActivities = activities.filter(a => a.completed).length;
-  const progressPercentage = (completedActivities / activities.length) * 100;
+  const completedActivities = sortedActivities.filter(a => a.completed).length;
+  const progressPercentage = sortedActivities.length > 0 ? (completedActivities / sortedActivities.length) * 100 : 0;
 
   return (
     <ElderLayout>
@@ -201,7 +186,7 @@ export default function ElderDashboard() {
                 {t.todayActivity}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{completedActivities}/{activities.length}</span>
+                <span className="text-sm text-muted-foreground">{completedActivities}/{sortedActivities.length}</span>
                 <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
                   <DialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20">
@@ -243,7 +228,7 @@ export default function ElderDashboard() {
             <CardContent className="flex-1 flex flex-col min-h-0">
               <Progress value={progressPercentage} className="mb-4 h-2 shrink-0" />
               <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                {activities.map(activity => (
+                {sortedActivities.map(activity => (
                   <div
                     key={activity.id}
                     className={`group w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activity.completed
@@ -275,7 +260,7 @@ export default function ElderDashboard() {
                     </Button>
                   </div>
                 ))}
-                {activities.length === 0 && (
+                {sortedActivities.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground text-sm">
                     No activities for today.
                   </div>
@@ -294,7 +279,7 @@ export default function ElderDashboard() {
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden flex flex-col">
               <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                {mockUpcomingMedicines.map(medicine => (
+                {sortedMedicines.map(medicine => (
                   <div key={medicine.id} className="bg-secondary/10 rounded-xl p-3 flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -302,17 +287,29 @@ export default function ElderDashboard() {
                         <span className="font-bold text-lg text-secondary">{medicine.time}</span>
                       </div>
                       <h4 className="font-semibold">{medicine.name}</h4>
-                      <p className="text-xs text-muted-foreground">{medicine.dosage} • {medicine.withFood ? 'With Food' : 'Before Food'}</p>
+                      <p className="text-xs text-muted-foreground">{medicine.dosage} • {medicine.taken ? 'Taken' : 'Pending'}</p>
                     </div>
-                    <Button size="sm" variant="secondary" className="h-8">
-                      Take
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8"
+                      onClick={() => toggleMedicine(medicine.id)}
+                      disabled={medicine.taken}
+                    >
+                      {medicine.taken ? 'Taken' : 'Take'}
                     </Button>
                   </div>
                 ))}
+                {sortedMedicines.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No medicines scheduled.
+                  </div>
+                )}
               </div>
               <div className="mt-4 pt-4 border-t border-border/50 text-center">
-                <p className="text-xs text-muted-foreground mb-2">4 of 6 doses remaining today</p>
-                <Button variant="outline" size="sm" className="w-full">View Full Schedule</Button>
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <a href="/elder/medicines">View Full Schedule</a>
+                </Button>
               </div>
             </CardContent>
           </Card>

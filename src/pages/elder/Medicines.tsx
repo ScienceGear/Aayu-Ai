@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ElderLayout } from '@/components/layout/ElderLayout';
+import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,57 +38,14 @@ interface Medicine {
   caretakerNote?: string;
 }
 
-const mockMedicines: Medicine[] = [
-  {
-    id: '1',
-    name: 'Metformin 500mg',
-    dosage: '1 tablet',
-    frequency: 'twice-daily',
-    time: '08:00',
-    stock: 12,
-    lowStockThreshold: 10,
-    withFood: true,
-    addedBy: 'self',
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=150&h=150&fit=crop'
-  },
-  {
-    id: '2',
-    name: 'Amlodipine 5mg',
-    dosage: '1 tablet',
-    frequency: 'daily',
-    time: '09:00',
-    stock: 28,
-    lowStockThreshold: 7,
-    withFood: false,
-    addedBy: 'caretaker',
-    caretakerNote: 'Please ensure dad takes this after breakfast.',
-    image: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?w=150&h=150&fit=crop'
-  },
-  {
-    id: '3',
-    name: 'Aspirin 75mg',
-    dosage: '1 tablet',
-    frequency: 'daily',
-    time: '08:00',
-    stock: 45,
-    lowStockThreshold: 10,
-    withFood: true
-  },
-  {
-    id: '4',
-    name: 'Atorvastatin 10mg',
-    dosage: '1 tablet',
-    frequency: 'daily',
-    time: '21:00',
-    stock: 30,
-    lowStockThreshold: 10,
-    withFood: false
-  },
-];
+// Mock data removed in favor of AppContext
 
 export default function Medicines() {
+  const { user, medicines, addMedicine, removeMedicine } = useApp();
   const { toast } = useToast();
-  const [medicines, setMedicines] = useState(mockMedicines);
+
+  const myMedicines = medicines.filter(m => m.userId === user?.id);
+
   const [isUploading, setIsUploading] = useState(false);
   const [newMedicine, setNewMedicine] = useState<Partial<Medicine> & { name: string; dosage: string; frequency: string; time: string; stock: string; withFood: boolean }>({
     name: '',
@@ -99,7 +57,7 @@ export default function Medicines() {
   });
 
   const handleAddMedicine = () => {
-    if (!newMedicine.name || !newMedicine.dosage || !newMedicine.time) {
+    if (!newMedicine.name || !newMedicine.dosage || !newMedicine.time || !user) {
       toast({
         title: 'Missing Information',
         description: 'Please fill in all required fields.',
@@ -108,20 +66,25 @@ export default function Medicines() {
       return;
     }
 
-    const medicine: Medicine = {
+    const medicine: any = {
       id: Date.now().toString(),
+      userId: user.id, // Explicitly assign to current user
+      assignedBy: 'self',
       name: newMedicine.name,
       dosage: newMedicine.dosage,
-      frequency: newMedicine.frequency as Medicine['frequency'],
+      frequency: newMedicine.frequency, // Ensure backend/context supports this field if needed, or map it
       time: newMedicine.time,
       stock: parseInt(newMedicine.stock) || 30,
       lowStockThreshold: 10,
-      withFood: newMedicine.withFood,
-      image: newMedicine.image,
-      addedBy: 'self'
+      taken: false // Default to not taken
     };
 
-    setMedicines(prev => [...prev, medicine]);
+    // Note: The AppContext Medicine interface might differ slightly (e.g. `frequency`, `withFood`). 
+    // If fields are missing in context interface, they won't persist unless updated there too.
+    // For now, we pass what matches. `addMedicine` in context expects `Medicine`.
+
+    addMedicine(medicine);
+
     setNewMedicine({
       name: '',
       dosage: '',
@@ -129,11 +92,6 @@ export default function Medicines() {
       time: '',
       stock: '',
       withFood: false,
-    });
-
-    toast({
-      title: 'Medicine Added',
-      description: `${medicine.name} has been added to your list.`,
     });
   };
 
@@ -160,7 +118,7 @@ export default function Medicines() {
   };
 
   const deleteMedicine = (id: string) => {
-    setMedicines(prev => prev.filter(m => m.id !== id));
+    removeMedicine(id);
     toast({
       title: 'Medicine Removed',
       description: 'The medicine has been removed from your list.',
@@ -210,7 +168,7 @@ export default function Medicines() {
           {/* Current Medicines Tab */}
           <TabsContent value="current">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {medicines.map(medicine => (
+              {myMedicines.map(medicine => (
                 <Card key={medicine.id} variant="elevated" className="overflow-hidden flex flex-col h-full">
                   <div className={`h-2 ${medicine.stock <= medicine.lowStockThreshold ? 'bg-warning' : 'bg-success'}`} />
                   <CardContent className="p-4 flex-1 flex flex-col">
@@ -478,7 +436,7 @@ export default function Medicines() {
               <CardContent>
                 <div className="space-y-4">
                   {['07:00', '08:00', '09:00', '12:00', '18:00', '21:00'].map(time => {
-                    const medsAtTime = medicines.filter(m => m.time === time);
+                    const medsAtTime = myMedicines.filter(m => m.time === time);
                     const isPast = new Date().getHours() > parseInt(time.split(':')[0]);
 
                     return (

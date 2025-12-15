@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function CaregiverDashboard() {
-    const { user, users, exercises, medicines, addExercise, addMedicine, removeExercise, removeMedicine } = useApp();
+    const { user, users, exercises, medicines, activities, addExercise, addMedicine, addActivity, removeExercise, removeMedicine, removeActivity } = useApp();
     const [selectedElderId, setSelectedElderId] = useState<string | null>(null);
 
     // Dialog States
@@ -36,6 +36,11 @@ export default function CaregiverDashboard() {
         name: '', dosage: '', time: '', stock: ''
     });
 
+    const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+    const [newActivity, setNewActivity] = useState({
+        title: '', time: ''
+    });
+
     // Assume all elders are "assigned" for demo purposes, or filter if we had assignment logic
     const assignedElders = users.filter(u => u.role === 'elder');
     const selectedElder = assignedElders.find(u => u.id === selectedElderId);
@@ -43,6 +48,21 @@ export default function CaregiverDashboard() {
     // Filtered Data for Selected Elder
     const elderExercises = exercises.filter(e => e.userId === selectedElderId);
     const elderMedicines = medicines.filter(m => m.userId === selectedElderId);
+    const elderActivities = activities.filter(a => a.userId === selectedElderId);
+
+    const handleAddActivity = () => {
+        if (!selectedElderId || !newActivity.title) return;
+        addActivity({
+            id: crypto.randomUUID(),
+            userId: selectedElderId,
+            title: newActivity.title,
+            completed: false,
+            dueTime: newActivity.time || '12:00 PM',
+            priority: 'medium'
+        });
+        setIsAddActivityOpen(false);
+        setNewActivity({ title: '', time: '' });
+    };
 
     const handleAddExercise = () => {
         if (!selectedElderId || !newExercise.name) return;
@@ -253,6 +273,52 @@ export default function CaregiverDashboard() {
                                                         </div>
                                                     </div>
                                                     <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeExercise(ex.id)}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                            {/* Activity Management */}
+                            <Card className="lg:col-span-2">
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5 text-purple-500" /> Daily Activities & Tasks
+                                    </CardTitle>
+                                    <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader><DialogTitle>Add Activity</DialogTitle></DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label>Activity Title</Label>
+                                                    <Input value={newActivity.title} onChange={e => setNewActivity({ ...newActivity, title: e.target.value })} placeholder="e.g. Call Lawyer" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Time</Label>
+                                                    <Input value={newActivity.time} onChange={e => setNewActivity({ ...newActivity, time: e.target.value })} placeholder="e.g. 10:00 AM" />
+                                                </div>
+                                            </div>
+                                            <DialogFooter><Button onClick={handleAddActivity}>Add Activity</Button></DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </CardHeader>
+                                <CardContent>
+                                    {elderActivities.length === 0 ? (
+                                        <p className="text-muted-foreground text-sm text-center py-4">No activities assigned.</p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {elderActivities.map(act => (
+                                                <div key={act.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg">
+                                                    <div>
+                                                        <p className={`font-medium ${act.completed ? 'line-through text-muted-foreground' : ''}`}>{act.title}</p>
+                                                        <p className="text-xs text-muted-foreground">{act.dueTime} • {act.completed ? 'Completed' : 'Pending'}</p>
+                                                    </div>
+                                                    <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeActivity(act.id)}>
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>

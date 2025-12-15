@@ -37,8 +37,15 @@ const greetings = [
   "Hello! I am Aayu, your health assistant. How can I help you today?",
 ];
 
+import { useApp } from '@/contexts/AppContext';
+import { getGeminiResponse } from '@/lib/gemini';
+
+// ... existing interfaces ...
+
 export default function AayuAssistant() {
   const { toast } = useToast();
+  const { user, medicines, activities } = useApp();
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -77,30 +84,32 @@ export default function AayuAssistant() {
     setInputValue('');
     setIsLoading(true);
 
-    // Check for camera mode
+    // Check for camera mode command (local logic)
     if (messageText.toLowerCase().includes('camera')) {
       setCameraMode(true);
       toast({
         title: 'Camera Mode Enabled',
         description: 'Point your camera at a medicine to identify it.',
       });
+      // We can still let Gemini respond about the camera
     }
 
-    // Simulate AI response
-    setTimeout(() => {
-      let responseText = '';
+    // Build Context
+    const myMedicines = medicines.filter(m => m.userId === user?.id);
+    const myActivities = activities.filter(a => a.userId === user?.id);
+
+    const contextInfo = `
+      User Name: ${user?.name || 'Elder'}
       
-      if (messageText.toLowerCase().includes('medicine') || messageText.toLowerCase().includes('stock')) {
-        responseText = "Based on your records, you have:\n\n• Metformin 500mg: 12 tablets (Low stock! Consider refilling soon)\n• Amlodipine 5mg: 28 tablets\n• Aspirin 75mg: 45 tablets\n\nWould you like me to remind you to refill any of these?";
-      } else if (messageText.toLowerCase().includes('miss') || messageText.toLowerCase().includes('activities')) {
-        responseText = "Looking at today's activities:\n\n✓ Blood pressure reading - Completed\n✗ Morning walk - Missed\n○ Call daughter - Pending (10:00 AM)\n○ Yoga session - Upcoming (5:00 PM)\n\nWould you like me to reschedule the morning walk for later today?";
-      } else if (messageText.toLowerCase().includes('feeling') || messageText.toLowerCase().includes('mood')) {
-        responseText = "Based on your mood logs this week:\n\n😊 Monday - Great\n😐 Tuesday - Okay\n😊 Wednesday - Great\n😴 Thursday - Tired\n😊 Today - Not logged yet\n\nOverall, you've been feeling positive! Would you like to log today's mood?";
-      } else if (messageText.toLowerCase().includes('camera')) {
-        responseText = "Camera mode is now active! Point your camera at any medicine and I'll help identify it and tell you:\n\n• What the medicine is for\n• When to take it\n• Any precautions\n\nJust tap the capture button when ready.";
-      } else {
-        responseText = "I understand you're asking about: \"" + messageText + "\"\n\nAs your health assistant, I can help you with:\n• Medicine reminders and information\n• Activity tracking\n• Health reports\n• Emergency contacts\n\nHow would you like me to assist you today?";
-      }
+      Current Medicines List:
+      ${myMedicines.map(m => `- ${m.name} (${m.dosage}): ${m.stock} left. Time: ${m.time}`).join('\n')}
+      
+      Today's Activities:
+      ${myActivities.map(a => `- ${a.title} at ${a.dueTime} (Status: ${a.completed ? 'Completed' : 'Pending'})`).join('\n')}
+    `;
+
+    try {
+      const responseText = await getGeminiResponse(messageText, contextInfo);
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -110,8 +119,15 @@ export default function AayuAssistant() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to get response from Aayu.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const toggleListening = () => {
@@ -156,7 +172,7 @@ export default function AayuAssistant() {
                   </div>
                 )}
               </div>
-              
+
               <h2 className="text-2xl font-bold mb-2">Aayu AI</h2>
               <p className="text-muted-foreground text-center mb-6">
                 Your personal health assistant
@@ -221,11 +237,10 @@ export default function AayuAssistant() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      message.role === 'user'
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
-                    }`}
+                      }`}
                   >
                     <p className="whitespace-pre-wrap">{message.content}</p>
                     <span className="text-xs opacity-70 mt-1 block">
@@ -234,7 +249,7 @@ export default function AayuAssistant() {
                   </div>
                 </div>
               ))}
-              
+
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-muted rounded-2xl px-4 py-3">
@@ -245,7 +260,7 @@ export default function AayuAssistant() {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
 
