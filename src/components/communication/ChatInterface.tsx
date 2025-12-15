@@ -10,9 +10,10 @@ import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'
 interface ChatInterfaceProps {
     recipientId: string;
     onClose: () => void;
+    variant?: 'floating' | 'centered' | 'full';
 }
 
-export function ChatInterface({ recipientId, onClose }: ChatInterfaceProps) {
+export function ChatInterface({ recipientId, onClose, variant = 'floating' }: ChatInterfaceProps) {
     const { user, messages, sendMessage, users } = useApp();
     const [newMessage, setNewMessage] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,8 +39,19 @@ export function ChatInterface({ recipientId, onClose }: ChatInterfaceProps) {
 
     if (!recipient) return null;
 
-    return (
-        <Card className="fixed bottom-4 right-4 w-80 sm:w-96 shadow-2xl z-50 flex flex-col h-[500px] border-primary/20 animate-in slide-in-from-bottom-10 fade-in duration-300 rounded-2xl">
+    const Wrapper = variant === 'centered' ? 'div' : React.Fragment;
+    const wrapperProps = variant === 'centered'
+        ? { className: "fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" }
+        : {};
+
+    const cardStyles = {
+        floating: "fixed bottom-4 right-4 w-80 sm:w-96 shadow-2xl z-50 flex flex-col h-[500px] border-primary/20 animate-in slide-in-from-bottom-10 fade-in duration-300 rounded-2xl",
+        centered: "w-full max-w-2xl h-[80vh] shadow-2xl flex flex-col border-primary/20 rounded-2xl bg-background",
+        full: "w-full h-[calc(100vh-100px)] shadow-none flex flex-col border border-border/40 rounded-xl bg-background"
+    }[variant];
+
+    const content = (
+        <Card className={cardStyles}>
             <CardHeader className="p-4 border-b bg-muted/50 flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 border-2 border-background">
@@ -114,4 +126,6 @@ export function ChatInterface({ recipientId, onClose }: ChatInterfaceProps) {
             </CardFooter>
         </Card>
     );
+
+    return variant === 'centered' ? <div {...wrapperProps}>{content}</div> : content;
 }

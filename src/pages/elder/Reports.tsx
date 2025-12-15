@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { ElderLayout } from '@/components/layout/ElderLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Although using slider/buttons mostly
 import { Slider } from '@/components/ui/slider';
-import { Textarea } from '@/components/ui/textarea'; // Assuming it exists or I'll use Input
-import { FileText, Plus, Calendar, AlertCircle } from 'lucide-react';
+import { FileText, Plus, Calendar, Check, CheckCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const mockReports = [
@@ -18,12 +16,38 @@ export default function ElderReports() {
     const [painLevel, setPainLevel] = useState([0]);
     const [reportText, setReportText] = useState('');
     const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
+    const [sentReports, setSentReports] = useState<{ id: string, issue: string, date: string, status: 'sent' | 'delivered' | 'seen' }[]>([]);
 
     const handleSubmitReport = () => {
+        if (!selectedIssue && !reportText) return;
+
+        const newReport = {
+            id: Date.now().toString(),
+            issue: selectedIssue || 'General Checkup',
+            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: 'sent' as const
+        };
+
+        setSentReports(prev => [newReport, ...prev]);
+
         toast({
             title: "Report Sent",
             description: "Your caregiver has been notified about your condition.",
         });
+
+        // Simulate delivery and seen text
+        setTimeout(() => {
+            setSentReports(prev => prev.map(r => r.id === newReport.id ? { ...r, status: 'delivered' } : r));
+        }, 2000);
+
+        setTimeout(() => {
+            setSentReports(prev => prev.map(r => r.id === newReport.id ? { ...r, status: 'seen' } : r));
+            toast({
+                title: "Report Seen",
+                description: "Your caregiver has viewed your report.",
+            });
+        }, 5000);
+
         setReportText('');
         setPainLevel([0]);
         setSelectedIssue(null);
@@ -94,6 +118,35 @@ export default function ElderReports() {
                         </Button>
                     </CardContent>
                 </Card>
+
+                {/* Sent Reports Status */}
+                {sentReports.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CheckCheck className="w-5 h-5 text-primary" />
+                                Recent Updates
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-3">
+                                {sentReports.map(report => (
+                                    <div key={report.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+                                        <div>
+                                            <h4 className="font-semibold">{report.issue}</h4>
+                                            <p className="text-xs text-muted-foreground">{report.date}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm">
+                                            {report.status === 'sent' && <span className="text-muted-foreground flex items-center gap-1"><Check className="w-4 h-4" /> Sent</span>}
+                                            {report.status === 'delivered' && <span className="text-muted-foreground flex items-center gap-1"><CheckCheck className="w-4 h-4" /> Delivered</span>}
+                                            {report.status === 'seen' && <span className="text-primary flex items-center gap-1 font-medium"><CheckCheck className="w-4 h-4" /> Seen by Caregiver</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Previous Reports */}
                 <Card>

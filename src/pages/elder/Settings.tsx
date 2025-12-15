@@ -19,6 +19,8 @@ import {
   Accessibility,
   Mic,
   User,
+  Heart,
+  Droplets,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -226,6 +228,43 @@ export default function Settings() {
                 <Label className="text-base">Voice Volume</Label>
               </div>
               <Slider defaultValue={[75]} max={100} step={5} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Health & Goals */}
+        <Card variant="elevated">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-danger" />
+              Health Goals
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Droplets className="w-5 h-5 text-primary" />
+                  <Label className="text-base">Daily Water Goal</Label>
+                </div>
+                <span className="text-sm text-muted-foreground font-medium">
+                  {localStorage.getItem('waterGoal') || '8'} glasses
+                </span>
+              </div>
+              <Slider
+                defaultValue={[parseInt(localStorage.getItem('waterGoal') || '8')]}
+                max={15}
+                min={4}
+                step={1}
+                onValueChange={(vals) => {
+                  localStorage.setItem('waterGoal', vals[0].toString());
+                  // Force update to show new value
+                  window.dispatchEvent(new Event('storage'));
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Recommended: 8 glasses per day
+              </p>
             </div>
           </CardContent>
         </Card>

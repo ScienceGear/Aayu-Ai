@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ElderLayout } from '@/components/layout/ElderLayout';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from '@/lib/translations';
@@ -16,9 +16,23 @@ import {
   AlertCircle,
   Sparkles,
   Heart,
+  Trash2,
+  Undo,
+  Calendar
 } from 'lucide-react';
 import { MoodGreat, MoodOkay, MoodSad, MoodUpset, MoodTired } from '@/components/icons/MoodIcons';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Mock data
 const mockActivities = [
@@ -26,15 +40,15 @@ const mockActivities = [
   { id: '2', title: 'Take Blood Pressure Reading', completed: true, dueTime: '8:00 AM', priority: 'high' as const },
   { id: '3', title: 'Call Daughter', completed: false, dueTime: '10:00 AM', priority: 'medium' as const },
   { id: '4', title: 'Yoga Session', completed: false, dueTime: '5:00 PM', priority: 'low' as const },
+  { id: '5', title: 'Evening Walk', completed: false, dueTime: '6:30 PM', priority: 'medium' as const },
 ];
 
-const mockMedicine = {
-  name: 'Metformin 500mg',
-  dosage: '1 tablet',
-  nextDose: '12:30 PM',
-  stock: 12,
-  lowStockThreshold: 10,
-};
+const mockUpcomingMedicines = [
+  { id: '1', name: 'Metformin 500mg', dosage: '1 tablet', time: '12:30 PM', status: 'pending', withFood: true },
+  { id: '2', name: 'Amlodipine 5mg', dosage: '1 tablet', time: '2:00 PM', status: 'pending', withFood: false },
+  { id: '3', name: 'Vitamin D', dosage: '1 capsule', time: '8:00 PM', status: 'pending', withFood: true },
+  { id: '4', name: 'Atorvastatin', dosage: '1 tablet', time: '9:00 PM', status: 'pending', withFood: false },
+];
 
 const moodOptions = [
   { icon: MoodGreat, label: 'Great', value: 'great', color: 'text-success', bg: 'bg-success/10', activeBg: 'bg-success' },
@@ -51,14 +65,34 @@ export default function ElderDashboard() {
   const [greeting, setGreeting] = useState('');
   const [activities, setActivities] = useState(mockActivities);
   const [waterGlasses, setWaterGlasses] = useState(3);
+  const [waterGoal, setWaterGoal] = useState(8);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const waterGoal = 8;
+  const deletedActivityRef = useRef<{ item: any, index: number } | null>(null);
+
+  // Add Activity State
+  const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+  const [newActivityTitle, setNewActivityTitle] = useState('');
+  const [newActivityTime, setNewActivityTime] = useState('');
+
 
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting(t.goodMorning);
     else if (hour < 17) setGreeting(t.goodAfternoon);
     else setGreeting(t.goodEvening);
+
+    // Load water goal
+    const savedGoal = localStorage.getItem('waterGoal');
+    if (savedGoal) setWaterGoal(parseInt(savedGoal));
+
+    // Listen for storage events to update water goal instantly if changed in settings
+    const handleStorageChange = () => {
+      const updatedGoal = localStorage.getItem('waterGoal');
+      if (updatedGoal) setWaterGoal(parseInt(updatedGoal));
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+
   }, [t]);
 
   const toggleActivity = (id: string) => {
@@ -67,18 +101,66 @@ export default function ElderDashboard() {
         activity.id === id ? { ...activity, completed: !activity.completed } : activity
       )
     );
+  };
+
+  const handleAddActivity = () => {
+    if (!newActivityTitle || !newActivityTime) return;
+
+    const newActivity = {
+      id: Date.now().toString(),
+      title: newActivityTitle,
+      completed: false,
+      dueTime: newActivityTime,
+      priority: 'medium' as const,
+    };
+
+    setActivities(prev => [...prev, newActivity]);
+    setNewActivityTitle('');
+    setNewActivityTime('');
+    setIsAddActivityOpen(false);
     toast({
-      title: 'Activity Updated',
-      description: 'Your activity has been marked as complete.',
+      title: 'Activity Added',
+      description: 'New activity has been added to your schedule.',
     });
+  };
+
+  const handleDeleteActivity = (id: string) => {
+    const index = activities.findIndex(a => a.id === id);
+    const item = activities[index];
+    deletedActivityRef.current = { item, index };
+
+    setActivities(prev => prev.filter(a => a.id !== id));
+
+    toast({
+      title: "Activity Deleted",
+      description: "Activity moved to trash.",
+      action: (
+        <Button variant="outline" size="sm" onClick={handleUndoDelete} className="gap-1">
+          <Undo className="w-3 h-3" /> Undo
+        </Button>
+      ),
+    });
+  };
+
+  const handleUndoDelete = () => {
+    if (deletedActivityRef.current) {
+      const { item, index } = deletedActivityRef.current;
+      setActivities(prev => {
+        const newActivities = [...prev];
+        newActivities.splice(index, 0, item);
+        return newActivities;
+      });
+      deletedActivityRef.current = null;
+      toast({ title: "Restored", description: "Activity restored successfully." });
+    }
   };
 
   const addWater = () => {
     if (waterGlasses < waterGoal) {
       setWaterGlasses(prev => prev + 1);
       toast({
-        title: 'Great job! 💧',
-        description: `You've had ${waterGlasses + 1} glasses of water today.`,
+        title: 'Water Logged 💧',
+        description: `Caretaker has been updated. ${waterGlasses + 1}/${waterGoal} glasses today.`,
       });
     }
   };
@@ -86,8 +168,8 @@ export default function ElderDashboard() {
   const handleMoodSelect = (mood: string) => {
     setSelectedMood(mood);
     toast({
-      title: 'Mood Logged',
-      description: `You're feeling ${mood} today. Take care of yourself!`,
+      title: 'Mood Reported',
+      description: `Your caregiver has been notified that you are feeling ${mood}.`,
     });
   };
 
@@ -112,73 +194,126 @@ export default function ElderDashboard() {
         {/* Main Dashboard Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Pending Activities Card */}
-          <Card variant="elevated" className="lg:col-span-1">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <Card variant="elevated" className="lg:col-span-1 flex flex-col max-h-[500px]">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 shrink-0">
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-primary" />
                 {t.todayActivity}
               </CardTitle>
-              <span className="text-sm text-muted-foreground">{completedActivities}/{activities.length}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{completedActivities}/{activities.length}</span>
+                <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/20">
+                      <Plus className="w-4 h-4 text-primary" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Activity</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="activity-title">Activity Name</Label>
+                        <Input
+                          id="activity-title"
+                          placeholder="e.g., Evening Walk"
+                          value={newActivityTitle}
+                          onChange={(e) => setNewActivityTitle(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="activity-time">Time</Label>
+                        <Input
+                          id="activity-time"
+                          type="time"
+                          value={newActivityTime}
+                          onChange={(e) => setNewActivityTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddActivityOpen(false)}>Cancel</Button>
+                      <Button onClick={handleAddActivity}>Add Activity</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
-            <CardContent>
-              <Progress value={progressPercentage} className="mb-4 h-2" />
-              <div className="space-y-3">
+            <CardContent className="flex-1 flex flex-col min-h-0">
+              <Progress value={progressPercentage} className="mb-4 h-2 shrink-0" />
+              <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
                 {activities.map(activity => (
-                  <button
+                  <div
                     key={activity.id}
-                    onClick={() => toggleActivity(activity.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activity.completed
-                        ? 'bg-success/10 text-success'
-                        : 'bg-muted hover:bg-muted/80'
+                    className={`group w-full flex items-center gap-3 p-3 rounded-xl transition-all ${activity.completed
+                      ? 'bg-success/10 text-success'
+                      : 'bg-muted hover:bg-muted/80'
                       }`}
                   >
-                    {activity.completed ? (
-                      <CheckCircle2 className="w-5 h-5 shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 shrink-0" />
-                    )}
-                    <span className={`flex-1 text-left ${activity.completed ? 'line-through' : ''}`}>
-                      {activity.title}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{activity.dueTime}</span>
-                  </button>
+                    <button
+                      onClick={() => toggleActivity(activity.id)}
+                      className="flex-1 flex items-center gap-3 text-left"
+                    >
+                      {activity.completed ? (
+                        <CheckCircle2 className="w-5 h-5 shrink-0" />
+                      ) : (
+                        <Circle className="w-5 h-5 shrink-0" />
+                      )}
+                      <span className={`flex-1 ${activity.completed ? 'line-through' : ''}`}>
+                        {activity.title}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{activity.dueTime}</span>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteActivity(activity.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 ))}
+                {activities.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No activities for today.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Medicine Reminder Card */}
-          <Card variant="elevated">
-            <CardHeader className="pb-2">
+          {/* Medicine Reminder Card - NEXT 24HRS List */}
+          <Card variant="elevated" className="max-h-[500px] flex flex-col">
+            <CardHeader className="pb-2 shrink-0">
               <CardTitle className="flex items-center gap-2">
                 <Pill className="w-5 h-5 text-secondary" />
-                {t.nextMedicine}
+                Upcoming Medicines (24h)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="bg-secondary/10 rounded-xl p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-lg">{mockMedicine.name}</span>
-                  {mockMedicine.stock <= mockMedicine.lowStockThreshold && (
-                    <span className="flex items-center gap-1 text-xs text-warning">
-                      <AlertCircle className="w-3 h-3" />
-                      Low stock
-                    </span>
-                  )}
-                </div>
-                <p className="text-muted-foreground">{mockMedicine.dosage}</p>
-                <div className="flex items-center gap-2 mt-3 text-2xl font-bold text-secondary">
-                  <Clock className="w-6 h-6" />
-                  {mockMedicine.nextDose}
-                </div>
+            <CardContent className="flex-1 overflow-hidden flex flex-col">
+              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                {mockUpcomingMedicines.map(medicine => (
+                  <div key={medicine.id} className="bg-secondary/10 rounded-xl p-3 flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="w-4 h-4 text-secondary" />
+                        <span className="font-bold text-lg text-secondary">{medicine.time}</span>
+                      </div>
+                      <h4 className="font-semibold">{medicine.name}</h4>
+                      <p className="text-xs text-muted-foreground">{medicine.dosage} • {medicine.withFood ? 'With Food' : 'Before Food'}</p>
+                    </div>
+                    <Button size="sm" variant="secondary" className="h-8">
+                      Take
+                    </Button>
+                  </div>
+                ))}
               </div>
-              <Button variant="secondary" className="w-full" size="lg">
-                <CheckCircle2 className="w-5 h-5 mr-2" />
-                Mark as Taken
-              </Button>
-              <p className="text-center text-sm text-muted-foreground mt-3">
-                {mockMedicine.stock} tablets remaining
-              </p>
+              <div className="mt-4 pt-4 border-t border-border/50 text-center">
+                <p className="text-xs text-muted-foreground mb-2">4 of 6 doses remaining today</p>
+                <Button variant="outline" size="sm" className="w-full">View Full Schedule</Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -200,8 +335,8 @@ export default function ElderDashboard() {
                         key={mood.value}
                         onClick={() => handleMoodSelect(mood.value)}
                         className={`group flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-2xl transition-all duration-200 ${isSelected
-                            ? `${mood.activeBg} text-white shadow-md scale-105`
-                            : `${mood.bg} ${mood.color} hover:scale-105`
+                          ? `${mood.activeBg} text-white shadow-md scale-105`
+                          : `${mood.bg} ${mood.color} hover:scale-105`
                           }`}
                       >
                         <mood.icon className="w-7 h-7" />
@@ -211,89 +346,60 @@ export default function ElderDashboard() {
                   })}
                 </div>
                 {selectedMood && (
-                  <div className="mt-4 bg-muted/50 rounded-xl px-4 py-2.5 text-center border border-border/30">
+                  <div className="mt-4 bg-muted/50 rounded-xl px-4 py-2.5 text-center border border-border/30 animate-in fade-in zoom-in">
                     <p className="text-sm text-foreground">
-                      Feeling <span className="font-semibold capitalize">{selectedMood}</span> · {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Report sent to caregiver at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Quick Health Stats */}
+            {/* Water Intake Tracker */}
             <Card variant="elevated">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Heart className="w-5 h-5 text-danger" />
-                  {t.healthSummary}
+                <CardTitle className="flex items-center gap-2">
+                  <Droplets className="w-5 h-5 text-primary" />
+                  {t.waterIntake}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-success/10 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-bold text-success">72</div>
-                    <p className="text-xs text-muted-foreground">Heart Rate</p>
-                  </div>
-                  <div className="bg-primary/10 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-bold text-primary">120/80</div>
-                    <p className="text-xs text-muted-foreground">BP</p>
-                  </div>
-                  <div className="bg-secondary/10 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-bold text-secondary">98.4°</div>
-                    <p className="text-xs text-muted-foreground">Temp</p>
-                  </div>
-                  <div className="bg-accent/10 rounded-xl p-3 text-center">
-                    <div className="text-2xl font-bold text-accent">6,240</div>
-                    <p className="text-xs text-muted-foreground">Steps</p>
+              <CardContent>
+                <div className="flex justify-center mb-4">
+                  <div className="relative w-32 h-40">
+                    {/* Glass Container */}
+                    <div className="absolute inset-0 border-4 border-primary/30 rounded-b-3xl rounded-t-lg overflow-hidden">
+                      {/* Water Fill */}
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary to-primary/70 transition-all duration-500"
+                        style={{ height: `${Math.min(100, (waterGlasses / waterGoal) * 100)}%` }}
+                      />
+                    </div>
+                    {/* Glass Number */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-foreground drop-shadow-lg">
+                        {waterGlasses}/{waterGoal}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <Progress value={(waterGlasses / waterGoal) * 100} className="mb-4 h-3" />
+                <Button
+                  variant="default"
+                  className="w-full"
+                  size="lg"
+                  onClick={addWater}
+                  disabled={waterGlasses >= waterGoal}
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Add Glass
+                </Button>
               </CardContent>
             </Card>
+
           </div>
 
-          {/* Water Intake Tracker */}
-          <Card variant="elevated">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <Droplets className="w-5 h-5 text-primary" />
-                {t.waterIntake}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-center mb-4">
-                <div className="relative w-32 h-40">
-                  {/* Glass Container */}
-                  <div className="absolute inset-0 border-4 border-primary/30 rounded-b-3xl rounded-t-lg overflow-hidden">
-                    {/* Water Fill */}
-                    <div
-                      className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary to-primary/70 transition-all duration-500"
-                      style={{ height: `${(waterGlasses / waterGoal) * 100}%` }}
-                    />
-                  </div>
-                  {/* Glass Number */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold text-foreground drop-shadow-lg">
-                      {waterGlasses}/{waterGoal}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <Progress value={(waterGlasses / waterGoal) * 100} className="mb-4 h-3" />
-              <Button
-                variant="default"
-                className="w-full"
-                size="lg"
-                onClick={addWater}
-                disabled={waterGlasses >= waterGoal}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Add Glass
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Meditation & Relaxation */}
-          <Card variant="gradient" className="lg:col-span-2">
+          {/* New Relax & Meditate Quick Access */}
+          <Card variant="gradient" className="lg:col-span-3">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2">
                 <Music className="w-5 h-5 text-accent" />
@@ -302,29 +408,31 @@ export default function ElderDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button className="bg-card hover:bg-card/80 rounded-xl p-4 text-center transition-all hover:scale-105">
-                  <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-2">
-                    <Music className="w-6 h-6 text-accent" />
-                  </div>
-                  <h4 className="font-semibold">Play Bhajan</h4>
-                  <p className="text-xs text-muted-foreground">Peaceful devotional music</p>
-                </button>
+                <Button variant="outline" className="h-auto p-4 flex flex-col gap-2" asChild>
+                  <a href="/elder/garden">
+                    <Music className="w-8 h-8 text-accent mb-1" />
+                    <span className="font-semibold">Play Bhajans</span>
+                    <span className="text-xs text-muted-foreground font-normal">Soothe your soul</span>
+                  </a>
+                </Button>
 
-                <button className="bg-card hover:bg-card/80 rounded-xl p-4 text-center transition-all hover:scale-105">
-                  <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-2 breathe">
-                    <div className="w-6 h-6 rounded-full bg-success" />
-                  </div>
-                  <h4 className="font-semibold">Breathing Exercise</h4>
-                  <p className="text-xs text-muted-foreground">Calm your mind</p>
-                </button>
+                <Button variant="outline" className="h-auto p-4 flex flex-col gap-2" asChild>
+                  <a href="/elder/garden">
+                    <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center mb-1">
+                      <div className="w-4 h-4 rounded-full bg-success animate-pulse" />
+                    </div>
+                    <span className="font-semibold">Breathing</span>
+                    <span className="text-xs text-muted-foreground font-normal">Calm anxiety</span>
+                  </a>
+                </Button>
 
-                <button className="bg-card hover:bg-card/80 rounded-xl p-4 text-center transition-all hover:scale-105">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                    <Clock className="w-6 h-6 text-primary" />
-                  </div>
-                  <h4 className="font-semibold">Meditation Timer</h4>
-                  <p className="text-xs text-muted-foreground">5, 10, or 15 minutes</p>
-                </button>
+                <Button variant="outline" className="h-auto p-4 flex flex-col gap-2" asChild>
+                  <a href="/elder/garden">
+                    <Clock className="w-8 h-8 text-primary mb-1" />
+                    <span className="font-semibold">Timer</span>
+                    <span className="text-xs text-muted-foreground font-normal">Set meditation time</span>
+                  </a>
+                </Button>
               </div>
             </CardContent>
           </Card>

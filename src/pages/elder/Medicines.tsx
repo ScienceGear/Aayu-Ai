@@ -19,6 +19,7 @@ import {
   Edit,
   Trash2,
   Loader2,
+  User
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,20 +32,64 @@ interface Medicine {
   stock: number;
   lowStockThreshold: number;
   withFood: boolean;
+  image?: string;
+  addedBy?: 'self' | 'caretaker';
+  caretakerNote?: string;
 }
 
 const mockMedicines: Medicine[] = [
-  { id: '1', name: 'Metformin 500mg', dosage: '1 tablet', frequency: 'twice-daily', time: '08:00', stock: 12, lowStockThreshold: 10, withFood: true },
-  { id: '2', name: 'Amlodipine 5mg', dosage: '1 tablet', frequency: 'daily', time: '09:00', stock: 28, lowStockThreshold: 7, withFood: false },
-  { id: '3', name: 'Aspirin 75mg', dosage: '1 tablet', frequency: 'daily', time: '08:00', stock: 45, lowStockThreshold: 10, withFood: true },
-  { id: '4', name: 'Atorvastatin 10mg', dosage: '1 tablet', frequency: 'daily', time: '21:00', stock: 30, lowStockThreshold: 10, withFood: false },
+  {
+    id: '1',
+    name: 'Metformin 500mg',
+    dosage: '1 tablet',
+    frequency: 'twice-daily',
+    time: '08:00',
+    stock: 12,
+    lowStockThreshold: 10,
+    withFood: true,
+    addedBy: 'self',
+    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=150&h=150&fit=crop'
+  },
+  {
+    id: '2',
+    name: 'Amlodipine 5mg',
+    dosage: '1 tablet',
+    frequency: 'daily',
+    time: '09:00',
+    stock: 28,
+    lowStockThreshold: 7,
+    withFood: false,
+    addedBy: 'caretaker',
+    caretakerNote: 'Please ensure dad takes this after breakfast.',
+    image: 'https://images.unsplash.com/photo-1585435557343-3b092031a831?w=150&h=150&fit=crop'
+  },
+  {
+    id: '3',
+    name: 'Aspirin 75mg',
+    dosage: '1 tablet',
+    frequency: 'daily',
+    time: '08:00',
+    stock: 45,
+    lowStockThreshold: 10,
+    withFood: true
+  },
+  {
+    id: '4',
+    name: 'Atorvastatin 10mg',
+    dosage: '1 tablet',
+    frequency: 'daily',
+    time: '21:00',
+    stock: 30,
+    lowStockThreshold: 10,
+    withFood: false
+  },
 ];
 
 export default function Medicines() {
   const { toast } = useToast();
   const [medicines, setMedicines] = useState(mockMedicines);
   const [isUploading, setIsUploading] = useState(false);
-  const [newMedicine, setNewMedicine] = useState({
+  const [newMedicine, setNewMedicine] = useState<Partial<Medicine> & { name: string; dosage: string; frequency: string; time: string; stock: string; withFood: boolean }>({
     name: '',
     dosage: '',
     frequency: 'daily',
@@ -72,6 +117,8 @@ export default function Medicines() {
       stock: parseInt(newMedicine.stock) || 30,
       lowStockThreshold: 10,
       withFood: newMedicine.withFood,
+      image: newMedicine.image,
+      addedBy: 'self'
     };
 
     setMedicines(prev => [...prev, medicine]);
@@ -92,7 +139,7 @@ export default function Medicines() {
 
   const handleUploadPrescription = () => {
     setIsUploading(true);
-    
+
     // Simulate AI extraction
     setTimeout(() => {
       setIsUploading(false);
@@ -125,15 +172,15 @@ export default function Medicines() {
     const now = new Date();
     const doseTime = new Date();
     doseTime.setHours(hours, minutes, 0);
-    
+
     if (doseTime < now) {
       doseTime.setDate(doseTime.getDate() + 1);
     }
-    
+
     const diff = doseTime.getTime() - now.getTime();
     const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
     const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hoursLeft > 0) {
       return `${hoursLeft}h ${minutesLeft}m`;
     }
@@ -162,27 +209,50 @@ export default function Medicines() {
 
           {/* Current Medicines Tab */}
           <TabsContent value="current">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {medicines.map(medicine => (
-                <Card key={medicine.id} variant="elevated" className="overflow-hidden">
+                <Card key={medicine.id} variant="elevated" className="overflow-hidden flex flex-col h-full">
                   <div className={`h-2 ${medicine.stock <= medicine.lowStockThreshold ? 'bg-warning' : 'bg-success'}`} />
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 flex-1 flex flex-col">
                     <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{medicine.name}</h3>
-                        <p className="text-sm text-muted-foreground">{medicine.dosage}</p>
+                      <div className="flex gap-3">
+                        {medicine.image ? (
+                          <img src={medicine.image} alt={medicine.name} className="w-12 h-12 rounded-full object-cover border-2 border-primary/20" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
+                            <Pill className="w-6 h-6 text-secondary" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-semibold text-lg leading-tight">{medicine.name}</h3>
+                          <p className="text-sm text-muted-foreground">{medicine.dosage}</p>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon">
-                          <Edit className="w-4 h-4" />
+
+                      {/* Actions */}
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Edit className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteMedicine(medicine.id)}>
-                          <Trash2 className="w-4 h-4 text-danger" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteMedicine(medicine.id)}>
+                          <Trash2 className="w-3.5 h-3.5 text-danger" />
                         </Button>
                       </div>
                     </div>
 
-                    <div className="space-y-3">
+                    {medicine.addedBy === 'caretaker' && (
+                      <div className="bg-primary/5 border border-primary/10 rounded-lg p-2.5 mb-3 text-sm">
+                        <span className="flex items-center gap-1.5 text-primary font-medium text-xs mb-1">
+                          <User className="w-3 h-3" />
+                          Added by Caretaker
+                        </span>
+                        {medicine.caretakerNote && (
+                          <p className="text-muted-foreground italic text-xs">"{medicine.caretakerNote}"</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-3 mt-auto">
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="w-4 h-4 text-primary" />
                         <span>Next dose in <strong>{getNextDose(medicine.time)}</strong></span>
@@ -204,8 +274,8 @@ export default function Medicines() {
                             {medicine.stock} tablets
                           </span>
                         </div>
-                        <Progress 
-                          value={(medicine.stock / 60) * 100} 
+                        <Progress
+                          value={(medicine.stock / 60) * 100}
                           className="h-2"
                         />
                       </div>
@@ -233,6 +303,32 @@ export default function Medicines() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="medicine-image">Medicine Image</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden border">
+                        {newMedicine.image ? (
+                          <img src={newMedicine.image} alt="Preview" className="h-full w-full object-cover" />
+                        ) : (
+                          <Upload className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <Input
+                        id="medicine-image"
+                        type="file"
+                        accept="image/*"
+                        className="flex-1"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const url = URL.createObjectURL(file);
+                            setNewMedicine(prev => ({ ...prev, image: url }));
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="name">Medicine Name *</Label>
                     <Input
@@ -325,7 +421,7 @@ export default function Medicines() {
                     <p className="text-sm text-muted-foreground mb-4">
                       Our AI will automatically extract medicine details
                     </p>
-                    
+
                     <input
                       type="file"
                       accept="image/*"
@@ -384,13 +480,12 @@ export default function Medicines() {
                   {['07:00', '08:00', '09:00', '12:00', '18:00', '21:00'].map(time => {
                     const medsAtTime = medicines.filter(m => m.time === time);
                     const isPast = new Date().getHours() > parseInt(time.split(':')[0]);
-                    
+
                     return (
                       <div
                         key={time}
-                        className={`flex items-start gap-4 p-4 rounded-xl ${
-                          isPast ? 'bg-muted/50' : 'bg-muted'
-                        }`}
+                        className={`flex items-start gap-4 p-4 rounded-xl ${isPast ? 'bg-muted/50' : 'bg-muted'
+                          }`}
                       >
                         <div className="text-center min-w-[60px]">
                           <span className={`text-lg font-bold ${isPast ? 'text-muted-foreground' : ''}`}>
@@ -403,9 +498,8 @@ export default function Medicines() {
                               {medsAtTime.map(med => (
                                 <div
                                   key={med.id}
-                                  className={`flex items-center justify-between p-2 rounded-lg ${
-                                    isPast ? 'bg-success/10' : 'bg-card'
-                                  }`}
+                                  className={`flex items-center justify-between p-2 rounded-lg ${isPast ? 'bg-success/10' : 'bg-card'
+                                    }`}
                                 >
                                   <div className="flex items-center gap-2">
                                     {isPast ? (
