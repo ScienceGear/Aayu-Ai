@@ -79,6 +79,19 @@ export default function ElderDashboard() {
     const savedGoal = localStorage.getItem('waterGoal');
     if (savedGoal) setWaterGoal(parseInt(savedGoal));
 
+    // Load water intake with date check
+    const today = new Date().toDateString();
+    const lastDate = localStorage.getItem('waterDate');
+    const savedIntake = localStorage.getItem('waterIntake');
+
+    if (lastDate === today && savedIntake) {
+      setWaterGlasses(parseInt(savedIntake));
+    } else {
+      localStorage.setItem('waterDate', today);
+      localStorage.setItem('waterIntake', '0');
+      setWaterGlasses(0);
+    }
+
     // Listen for storage events to update water goal instantly if changed in settings
     const handleStorageChange = () => {
       const updatedGoal = localStorage.getItem('waterGoal');
@@ -142,10 +155,14 @@ export default function ElderDashboard() {
 
   const addWater = () => {
     if (waterGlasses < waterGoal) {
-      setWaterGlasses(prev => prev + 1);
+      const newCount = waterGlasses + 1;
+      setWaterGlasses(newCount);
+      localStorage.setItem('waterIntake', newCount.toString());
+      localStorage.setItem('waterDate', new Date().toDateString());
+
       toast({
         title: 'Water Logged 💧',
-        description: `Caretaker has been updated. ${waterGlasses + 1}/${waterGoal} glasses today.`,
+        description: `Great job! ${newCount}/${waterGoal} glasses today.`,
       });
     }
   };

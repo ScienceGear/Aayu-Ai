@@ -238,3 +238,33 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* Accessibility Modes */
+.high-contrast {
+  --primary: 240 100% 50%; /* Deep Blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 30 100% 50%; /* Deep Orange */
+  --muted: 0 0% 100%;
+  --muted-foreground: 0 0% 0%;
+  --border: 0 0% 0%;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+}
+
+.high-contrast .text-muted-foreground {
+  color: #000000 !important;
+}
+
+.high-contrast * {
+  border-width: 1px !important;
+  border-color: #000000 !important;
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

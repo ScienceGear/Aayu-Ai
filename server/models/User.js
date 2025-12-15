@@ -10,7 +10,25 @@ const userSchema = new mongoose.Schema({
     phone: { type: String },
     age: { type: Number },
     gender: { type: String, enum: ['male', 'female', 'other'] },
+    height: { type: Number }, // in cm
+    weight: { type: Number }, // in kg
     bloodGroup: { type: String },
+    // Caregiver specific fields
+    rating: { type: Number, default: 0 },
+    ratingsCount: { type: Number, default: 0 },
+    feedbacks: [{
+        elderId: String,
+        elderName: String,
+        rating: Number,
+        comment: String,
+        date: { type: Date, default: Date.now }
+    }],
+    experience: { type: String }, // e.g. "5 years"
+    location: { type: String },
+    specialization: { type: String },
+    // Status
+    isOnline: { type: Boolean, default: false },
+    lastSeen: { type: Date, default: Date.now },
     emergencyContacts: [{
         name: String,
         phone: String,

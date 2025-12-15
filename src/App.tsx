@@ -19,6 +19,7 @@ import Settings from "@/pages/elder/Settings";
 import Exercise from "@/pages/elder/Exercise";
 import ElderCaregivers from "@/pages/elder/Caregivers"; // Renamed to avoid conflict
 import ElderReports from "@/pages/elder/Reports";
+import Meditation from "@/pages/elder/Meditation";
 import { IncomingCall } from "@/components/communication/IncomingCall";
 
 // Caregiver Pages

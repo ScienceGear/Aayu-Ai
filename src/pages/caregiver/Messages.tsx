@@ -86,38 +86,7 @@ export default function Messages() {
                 {/* Chat Area - Desktop */}
                 <div className="hidden md:flex flex-1 flex-col">
                     {activeChatId ? (
-                        <div className="relative flex-1">
-                            {/* We re-use ChatInterface but might need styling adjustments or different container */}
-                            {/* Ideally ChatInterface should be flexible. For now, let's render it as a fixed overlay or inline if refactored.
-                                Given current ChatInterface is fixed position, let's just use it as is for simplicity, 
-                                but in a real app we'd make it inline for this view. 
-                                
-                                For this step, I'll allow the floating chat window behavior as requested by the reusable component.
-                            */}
-                            <div className="h-full flex items-center justify-center bg-muted/20 rounded-xl border border-dashed">
-                                <div className="text-center space-y-4">
-                                    <Avatar className="h-20 w-20 mx-auto">
-                                        <AvatarImage src={elders.find(e => e.id === activeChatId)?.profilePic} />
-                                        <AvatarFallback>{elders.find(e => e.id === activeChatId)?.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <h3 className="text-xl font-bold">{elders.find(e => e.id === activeChatId)?.name}</h3>
-                                        <p className="text-muted-foreground">Chat Open</p>
-                                    </div>
-                                    <div className="flex gap-2 justify-center">
-                                        <Button onClick={() => startCall(activeChatId, 'voice')}>
-                                            <Phone className="mr-2 h-4 w-4" /> Voice Call
-                                        </Button>
-                                        <Button variant="secondary" onClick={() => startCall(activeChatId, 'video')}>
-                                            <Video className="mr-2 h-4 w-4" /> Video Call
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* The Actual Functional Chat Popup */}
-                            <ChatInterface recipientId={activeChatId} onClose={() => setActiveChatId(null)} />
-                        </div>
+                        <ChatInterface recipientId={activeChatId} onClose={() => setActiveChatId(null)} />
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-muted-foreground">
                             <div className="text-center">

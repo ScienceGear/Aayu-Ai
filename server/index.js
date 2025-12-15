@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
+const uploadRoutes = require('./routes/upload');
 const careRoutes = require('./routes/care');
 
 const app = express();
@@ -22,6 +23,8 @@ const io = new Server(server, {
 // Middleware
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+// Serve uploads statically
+app.use('/uploads', express.static('uploads'));
 
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -33,37 +36,84 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/care', careRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Socket.io Logic
+const User = require('./models/User'); // Import User model for status updates
+
+// Store active users map: socketId -> userId
+const activeUsers = new Map();
+
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('join_room', (userId) => {
+    socket.on('join_room', async (userId) => {
         socket.join(userId);
+        activeUsers.set(socket.id, userId);
         console.log(`User ${userId} joined their room`);
+
+        // Update user status to online
+        try {
+            await User.findOneAndUpdate({ id: userId }, { isOnline: true });
+            io.emit('user_status_change', { userId, isOnline: true });
+        } catch (err) {
+            console.error('Error updating online status:', err);
+        }
     });
 
     socket.on('send_message', (data) => {
-        // data: { senderId, receiverId, content, ... }
+        // data: { senderId, receiverId, content, type, fileUrl ... }
+        console.log('Message from', data.senderId, 'to', data.receiverId);
         io.to(data.receiverId).emit('receive_message', data);
     });
 
-    // WebRTC Signaling
+    // WebRTC Signaling - Complete Implementation
     socket.on('call_user', (data) => {
-        const { userToCall, signalData, from, name } = data;
-        io.to(userToCall).emit('call_user', { signal: signalData, from, name });
+        const { userToCall, from, name, type, offer } = data;
+        console.log(`📞 Call from ${from} to ${userToCall} (${type})`);
+        io.to(userToCall).emit('incoming_call', {
+            from,
+            name,
+            type,
+            offer
+        });
     });
 
     socket.on('answer_call', (data) => {
-        io.to(data.to).emit('call_accepted', data.signal);
+        const { to, answer } = data;
+        console.log(`✅ Call answered by ${socket.id} to ${to}`);
+        io.to(to).emit('call_answered', { answer });
+    });
+
+    socket.on('ice_candidate', (data) => {
+        const { to, candidate } = data;
+        console.log(`🧊 ICE candidate from ${socket.id} to ${to}`);
+        io.to(to).emit('ice_candidate', { candidate });
     });
 
     socket.on('end_call', ({ to }) => {
+        console.log(`📴 Call ended, notifying ${to}`);
         io.to(to).emit('call_ended');
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         console.log('User disconnected', socket.id);
+        const userId = activeUsers.get(socket.id);
+        if (userId) {
+            try {
+                await User.findOneAndUpdate({ id: userId }, { isOnline: false, lastSeen: new Date() });
+                io.emit('user_status_change', { userId, isOnline: false, lastSeen: new Date() });
+                activeUsers.delete(socket.id);
+            } catch (err) { console.error(err); }
+        }
+    });
+
+    // Manual offline event if client sends it before closing
+    socket.on('go_offline', async (userId) => {
+        try {
+            await User.findOneAndUpdate({ id: userId }, { isOnline: false, lastSeen: new Date() });
+            io.emit('user_status_change', { userId, isOnline: false, lastSeen: new Date() });
+        } catch (err) { console.error(err); }
     });
 });
 

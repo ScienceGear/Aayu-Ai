@@ -30,7 +30,24 @@ export interface User {
   phone?: string;
   age?: number;
   gender?: 'male' | 'female' | 'other';
+  height?: number; // cm
+  weight?: number; // kg
   bloodGroup?: string;
+  // Caregiver fields
+  rating?: number;
+  ratingsCount?: number;
+  isOnline?: boolean;
+  lastSeen?: string;
+  experience?: string;
+  location?: string;
+  specialization?: string;
+  feedbacks?: {
+    elderId: string;
+    elderName: string;
+    rating: number;
+    comment: string;
+    date: string;
+  }[];
   emergencyContacts?: { name: string; phone: string; relation: string }[];
 }
 
@@ -159,38 +176,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Initialize Data & Socket
   useEffect(() => {
-    // Connect Socket
-    socketRef.current = io(BASE_URL);
+    // Connect Socket with better configuration
+    console.log('🔌 Connecting to Socket.IO server at:', BASE_URL);
+    socketRef.current = io(BASE_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
 
     socketRef.current.on('connect', () => {
-      console.log('Connected to socket server');
+      console.log('✅ Connected to socket server, Socket ID:', socketRef.current?.id);
+      const savedUser = localStorage.getItem('aayu-user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        console.log('👤 Joining room for user:', userData.id);
+        socketRef.current?.emit('join_room', userData.id);
+      }
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('❌ Socket connection error:', error.message);
     });
 
     socketRef.current.on('receive_message', (data: Message) => {
+      console.log('📨 Received message:', data);
       setMessages(prev => [...prev, data]);
-      toast({ title: 'New Message', description: 'You received a message.' });
+      toast({ title: 'New Message', description: data.content.substring(0, 50) });
     });
 
-    socketRef.current.on('call_user', (data: any) => {
-      console.log("Incoming call:", data);
+    // WebRTC Signaling Events
+    socketRef.current.on('incoming_call', (data: any) => {
+      console.log("📞 Incoming call:", data);
       setIncomingCall({
         callId: crypto.randomUUID(),
         callerId: data.from,
         callerName: data.name || 'Unknown',
-        signal: data.signal,
-        type: 'video' // Defaulting to video for now as signal doesn't carry type in current backend
+        signal: data.offer,
+        type: data.type || 'video'
       });
-      // Play ringtone logic could go here or in the component
     });
 
-    socketRef.current.on('call_accepted', (signal: any) => {
-      console.log("Call accepted");
-      setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
-      // Here we would pass 'signal' to the WebRTC peer connection
+    socketRef.current.on('call_answered', (data: any) => {
+      console.log("✅ Call answered with answer:", data.answer);
+      // This will be handled in VideoCallInterface
+      window.dispatchEvent(new CustomEvent('call-answered', { detail: data.answer }));
+    });
+
+    socketRef.current.on('ice_candidate', (data: any) => {
+      console.log("🧊 Received ICE candidate");
+      // This will be handled in VideoCallInterface
+      window.dispatchEvent(new CustomEvent('ice-candidate', { detail: data.candidate }));
     });
 
     socketRef.current.on('call_ended', () => {
-      console.log("Call ended by remote");
+      console.log("📴 Call ended by remote");
       setActiveCall(null);
       setIncomingCall(null);
       toast({ description: 'Call ended' });
@@ -436,8 +476,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMessages(prev => [...prev, newMessage as Message]);
   };
 
-  const startCall = (receiverId: string, type: 'voice' | 'video') => {
+  const startCall = async (receiverId: string, type: 'voice' | 'video') => {
     if (!user) return;
+    console.log(`📞 Starting ${type} call to:`, receiverId);
+
     setActiveCall({
       id: crypto.randomUUID(),
       participants: [user.id, receiverId],
@@ -446,12 +488,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       startTime: new Date().toISOString(),
     });
 
-    // Emit call event
+    // Emit call event - WebRTC offer will be created in VideoCallInterface
     socketRef.current?.emit('call_user', {
       userToCall: receiverId,
-      signalData: {}, // Placeholder for WebRTC offer
       from: user.id,
-      name: user.name
+      name: user.name,
+      type: type,
+      offer: null // Will be set by VideoCallInterface
     });
   };
 

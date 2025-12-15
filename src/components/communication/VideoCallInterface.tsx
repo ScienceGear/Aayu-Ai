@@ -1,160 +1,313 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Users } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { io } from 'socket.io-client';
+
+const getBaseUrl = () => {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:5000';
+    }
+    return `http://${hostname}:5000`;
+};
 
 export function VideoCallInterface() {
     const { activeCall, endCall, user, users } = useApp();
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
-    const localVideoRef = useRef<HTMLVideoElement>(null);
+    const [callDuration, setCallDuration] = useState(0);
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+    const [connectionState, setConnectionState] = useState<string>('new');
 
-    // Find the other participant
+    const localVideoRef = useRef<HTMLVideoElement>(null);
+    const remoteVideoRef = useRef<HTMLVideoElement>(null);
+    const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+    const socketRef = useRef<any>(null);
+
     const otherParticipantId = activeCall?.participants.find(id => id !== user?.id);
     const otherParticipant = users.find(u => u.id === otherParticipantId);
+    const isVideoCall = activeCall?.type === 'video';
 
+    // Call duration timer
     useEffect(() => {
-        let stream: MediaStream | null = null;
-        let p2pConnection: RTCPeerConnection | null = null; // Future implementations would go here
+        if (activeCall?.status === 'connected') {
+            const interval = setInterval(() => {
+                setCallDuration(prev => prev + 1);
+            }, 1000);
+            return () => clearInterval(interval);
+        } else {
+            setCallDuration(0);
+        }
+    }, [activeCall?.status]);
 
-        const startMedia = async () => {
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // Initialize WebRTC
+    useEffect(() => {
+        if (!activeCall || !user || !otherParticipantId) return;
+
+        let stream: MediaStream | null = null;
+        socketRef.current = io(getBaseUrl());
+
+        const initializeCall = async () => {
             try {
+                // Get local media
                 const constraints = {
                     audio: true,
-                    video: activeCall?.type === 'video'
+                    video: isVideoCall ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false
                 };
 
+                console.log('🎥 Requesting media:', constraints);
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
+                setLocalStream(stream);
 
-                if (localVideoRef.current && activeCall?.type === 'video') {
+                if (localVideoRef.current && isVideoCall) {
                     localVideoRef.current.srcObject = stream;
                 }
 
-                // For "Voice" calls, we might still want to visualize audio, but for now just getting the stream ensures mic is on.
+                // Create peer connection
+                const configuration: RTCConfiguration = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                    ]
+                };
 
-            } catch (err) {
-                console.error('Error accessing media devices:', err);
+                const peerConnection = new RTCPeerConnection(configuration);
+                peerConnectionRef.current = peerConnection;
+
+                // Add local tracks
+                stream.getTracks().forEach(track => {
+                    console.log('➕ Adding track:', track.kind);
+                    peerConnection.addTrack(track, stream!);
+                });
+
+                // Handle incoming tracks
+                peerConnection.ontrack = (event) => {
+                    console.log('📥 Received remote track:', event.track.kind);
+                    const [remStream] = event.streams;
+                    setRemoteStream(remStream);
+                    if (remoteVideoRef.current) {
+                        remoteVideoRef.current.srcObject = remStream;
+                    }
+                };
+
+                // Handle ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('🧊 Sending ICE candidate');
+                        socketRef.current?.emit('ice_candidate', {
+                            to: otherParticipantId,
+                            candidate: event.candidate
+                        });
+                    }
+                };
+
+                // Monitor connection state
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('🔗 Connection state:', peerConnection.connectionState);
+                    setConnectionState(peerConnection.connectionState);
+                };
+
+                // Join room
+                socketRef.current.emit('join_room', user.id);
+
+                // If caller, create offer
+                if (activeCall.status === 'calling') {
+                    console.log('📤 Creating offer...');
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+
+                    socketRef.current.emit('call_user', {
+                        userToCall: otherParticipantId,
+                        from: user.id,
+                        name: user.name,
+                        type: activeCall.type,
+                        offer: offer
+                    });
+                }
+
+                // Listen for answer
+                const handleCallAnswered = async (event: any) => {
+                    const answer = event.detail;
+                    console.log('✅ Received answer');
+                    if (peerConnection.signalingState !== 'stable') {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                    }
+                };
+
+                // Listen for ICE candidates
+                const handleIceCandidate = async (event: any) => {
+                    const candidate = event.detail;
+                    console.log('🧊 Received ICE candidate');
+                    if (candidate && peerConnection.remoteDescription) {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
+                };
+
+                window.addEventListener('call-answered', handleCallAnswered);
+                window.addEventListener('ice-candidate', handleIceCandidate);
+
+                return () => {
+                    window.removeEventListener('call-answered', handleCallAnswered);
+                    window.removeEventListener('ice-candidate', handleIceCandidate);
+                };
+
+            } catch (err: any) {
+                console.error('❌ Error:', err);
+                // alert(`Call Error: ${err.message}`); // Removed alert for better UX
             }
         };
 
-        if (activeCall?.status === 'connected' || activeCall?.status === 'calling') {
-            startMedia();
-        }
+        initializeCall();
 
         return () => {
             if (stream) {
+                console.log('🛑 Stopping media');
                 stream.getTracks().forEach(track => track.stop());
             }
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.close();
+            }
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
         };
-    }, [activeCall?.status, activeCall?.type]);
+    }, [activeCall, user, otherParticipantId, isVideoCall]);
+
+    // Toggle mute
+    useEffect(() => {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !isMuted;
+            });
+        }
+    }, [isMuted, localStream]);
+
+    // Toggle video
+    useEffect(() => {
+        if (localStream && isVideoCall) {
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = !isVideoOff;
+            });
+        }
+    }, [isVideoOff, localStream, isVideoCall]);
 
     if (!activeCall) return null;
 
-    const isVideoCall = activeCall.type === 'video';
-
     return (
-        <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center animate-in fade-in duration-300">
-            {/* Background Area */}
-            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        <div className="fixed inset-0 z-[100] bg-gradient-to-br from-gray-900 via-gray-800 to-black flex flex-col">
+            {/* Remote Video / Avatar */}
+            <div className="relative flex-1 flex items-center justify-center overflow-hidden">
                 {isVideoCall ? (
-                    <div className="absolute inset-0 w-full h-full">
-                        {/* Simulated Remote Video for Video Call */}
+                    <div className="relative w-full h-full">
                         <video
-                            ref={(el) => {
-                                if (el && localVideoRef.current?.srcObject) {
-                                    el.srcObject = localVideoRef.current.srcObject;
-                                }
-                            }}
+                            ref={remoteVideoRef}
                             autoPlay
-                            muted
                             playsInline
-                            className="w-full h-full object-cover opacity-50 blur-sm"
+                            className="w-full h-full object-cover"
                         />
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-[2px] space-y-6">
-                            {/* Overlay content stays same */}
-                            <Avatar className="h-32 w-32 mx-auto border-4 border-primary/20 animate-pulse">
-                                <AvatarImage src={otherParticipant?.profilePic} />
-                                <AvatarFallback className="text-4xl">{otherParticipant?.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-2 text-center pointer-events-none">
-                                <h2 className="text-3xl font-bold text-white tracking-tight">{otherParticipant?.name}</h2>
-                                <p className="text-slate-200 font-medium uppercase tracking-widest text-sm bg-black/40 px-3 py-1 rounded-full inline-block">
-                                    {activeCall.status === 'calling' ? 'Calling...' : 'Connected (Simulated)'}
-                                </p>
+
+                        {!remoteStream && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-gray-800 to-gray-900">
+                                <Avatar className="h-32 w-32 border-4 border-white/20 mb-4">
+                                    <AvatarImage src={otherParticipant?.profilePic} />
+                                    <AvatarFallback className="text-4xl bg-primary">
+                                        {otherParticipant?.name.charAt(0)}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <h2 className="text-2xl font-semibold text-white mb-2">{otherParticipant?.name}</h2>
+                                <p className="text-primary text-sm">{connectionState === 'connected' ? 'Connected' : 'Connecting...'}</p>
                             </div>
-                        </div>
+                        )}
                     </div>
                 ) : (
-                    // Voice Call UI
-                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-950 space-y-8">
+                    <div className="flex flex-col items-center justify-center space-y-6">
                         <div className="relative">
                             <div className="absolute inset-0 rounded-full bg-primary/20 animate-[ping_2s_ease-in-out_infinite]" />
-                            <div className="absolute inset-0 rounded-full bg-primary/10 animate-[ping_3s_ease-in-out_infinite_delay-1000]" />
-                            <Avatar className="h-40 w-40 border-4 border-background relative z-10 shadow-2xl">
+                            <Avatar className="h-40 w-40 border-4 border-white/30 relative z-10 shadow-2xl">
                                 <AvatarImage src={otherParticipant?.profilePic} />
-                                <AvatarFallback className="text-5xl">{otherParticipant?.name.charAt(0)}</AvatarFallback>
+                                <AvatarFallback className="text-5xl bg-primary">
+                                    {otherParticipant?.name.charAt(0)}
+                                </AvatarFallback>
                             </Avatar>
                         </div>
-
                         <div className="text-center space-y-2">
-                            <h2 className="text-4xl font-bold text-white tracking-tight">{otherParticipant?.name}</h2>
-                            <p className="text-primary font-medium uppercase tracking-widest text-sm bg-primary/10 px-4 py-1.5 rounded-full inline-block">
-                                {activeCall.status === 'calling' ? 'Voice Calling...' : '00:00 • Voice Connected'}
+                            <h2 className="text-4xl font-bold text-white">{otherParticipant?.name}</h2>
+                            <p className="text-primary font-medium text-lg">
+                                {connectionState === 'connected' ? formatDuration(callDuration) : 'Connecting...'}
                             </p>
                         </div>
                     </div>
                 )}
+
+                {/* Call Info */}
+                <div className="absolute top-4 left-0 right-0 flex justify-center">
+                    <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full">
+                        <p className="text-white text-sm font-medium">
+                            {connectionState === 'connected' ? formatDuration(callDuration) : 'Connecting...'}
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* Local Video (only for Video Call) */}
+            {/* Local Video (PiP) */}
             {isVideoCall && (
-                <div className="absolute top-4 right-4 w-32 sm:w-48 aspect-video bg-slate-900 rounded-xl overflow-hidden shadow-2xl border border-white/10">
-                    <video
-                        ref={localVideoRef}
-                        autoPlay
-                        muted
-                        playsInline
-                        className={`w-full h-full object-cover transform scale-x-[-1] ${isVideoOff ? 'hidden' : ''}`}
-                    />
-                    {isVideoOff && (
-                        <div className="w-full h-full flex items-center justify-center text-slate-500">
-                            <VideoOff className="h-8 w-8" />
+                <div className="absolute top-20 right-4 w-32 sm:w-40 md:w-48 aspect-[3/4] bg-gray-900 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20">
+                    {!isVideoOff ? (
+                        <video
+                            ref={localVideoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover transform scale-x-[-1]"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                            <VideoOff className="h-8 w-8 text-white/60 mb-2" />
+                            <p className="text-white/60 text-xs">Camera off</p>
                         </div>
                     )}
                 </div>
             )}
 
             {/* Controls */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 px-8 py-4 bg-slate-900/90 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 sm:gap-6 px-6 sm:px-8 py-4 bg-black/50 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl">
                 <Button
                     variant={isMuted ? "destructive" : "secondary"}
                     size="icon"
-                    className="rounded-full h-14 w-14"
+                    className="rounded-full h-12 w-12 sm:h-14 sm:w-14"
                     onClick={() => setIsMuted(!isMuted)}
                 >
-                    {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-                </Button>
-
-                <Button
-                    variant="destructive"
-                    size="icon"
-                    className="rounded-full h-16 w-16 bg-red-600 hover:bg-red-700 shadow-red-900/20 shadow-lg"
-                    onClick={endCall}
-                >
-                    <PhoneOff className="h-8 w-8" />
+                    {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </Button>
 
                 {isVideoCall && (
                     <Button
                         variant={isVideoOff ? "destructive" : "secondary"}
                         size="icon"
-                        className="rounded-full h-14 w-14"
+                        className="rounded-full h-12 w-12 sm:h-14 sm:w-14"
                         onClick={() => setIsVideoOff(!isVideoOff)}
                     >
-                        {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
+                        {isVideoOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
                     </Button>
                 )}
+
+                <Button
+                    variant="destructive"
+                    size="icon"
+                    className="rounded-full h-14 w-14 sm:h-16 sm:w-16 bg-red-600 hover:bg-red-700"
+                    onClick={endCall}
+                >
+                    <PhoneOff className="h-6 w-6" />
+                </Button>
             </div>
         </div>
     );

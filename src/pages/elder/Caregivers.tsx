@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ElderLayout } from '@/components/layout/ElderLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,9 @@ import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from '@/lib/translations';
 import { ChatInterface } from '@/components/communication/ChatInterface';
 import { VideoCallInterface } from '@/components/communication/VideoCallInterface';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Users,
   Phone,
@@ -20,6 +23,7 @@ import {
   Heart,
   Shield,
   MapPin,
+  ThumbsUp,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,17 +38,24 @@ interface Caregiver {
   isOnline: boolean;
   lastSeen?: string;
   rating: number;
+  ratingsCount: number;
   experience: string;
   location: string;
   assignedSince: string;
 }
 
 export default function Caregivers() {
-  const { settings, users, startCall, activeCall } = useApp();
+  const { settings, users, startCall, activeCall, user: currentUser } = useApp();
   const t = useTranslation(settings.language);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [openChatId, setOpenChatId] = useState<string | null>(null);
+
+  // Rating State
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [selectedCaregiver, setSelectedCaregiver] = useState<Caregiver | null>(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingComment, setRatingComment] = useState('');
 
   // Filter real users with role 'caregiver' and map to Caregiver interface
   const realCaregivers: Caregiver[] = users
@@ -53,15 +64,17 @@ export default function Caregivers() {
       id: u.id,
       name: u.name,
       avatar: u.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`,
-      role: 'Caregiver', // Default label
-      specialization: 'General Assistance', // Default
+      role: 'Caregiver',
+      specialization: u.specialization || 'General Assistance',
       phone: u.phone || 'Not provided',
       email: u.email,
-      isOnline: true, // Mock status for now
-      rating: 5.0, // Default
-      experience: 'Experienced', // Default
-      location: 'On Call', // Default
-      assignedSince: '2024', // Default
+      isOnline: u.isOnline || false,
+      lastSeen: u.lastSeen ? new Date(u.lastSeen).toLocaleTimeString() : 'Recently',
+      rating: u.rating || 4.5, // Default if 0
+      ratingsCount: u.ratingsCount || 0,
+      experience: u.experience || 'Experienced',
+      location: u.location || 'On Call',
+      assignedSince: new Date(parseInt(u.id.substring(0, 8), 16) * 1000).getFullYear().toString() || '2024',
     }));
 
   const filteredCaregivers = realCaregivers.filter(
@@ -82,32 +95,68 @@ export default function Caregivers() {
     setOpenChatId(caregiver.id);
   };
 
+  const openRatingModal = (caregiver: Caregiver) => {
+    setSelectedCaregiver(caregiver);
+    setRatingValue(5);
+    setRatingComment('');
+    setRatingModalOpen(true);
+  };
+
+  const submitRating = async () => {
+    if (!selectedCaregiver || !currentUser) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/users/${selectedCaregiver.id}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          elderId: currentUser.id,
+          elderName: currentUser.name,
+          rating: ratingValue,
+          comment: ratingComment
+        })
+      });
+
+      if (response.ok) {
+        toast({ title: "Feedback Sent", description: "Thank you for your feedback!" });
+        setRatingModalOpen(false);
+        // Ideally trigger refresh of users list here
+      } else {
+        toast({ title: "Error", description: "Could not save rating.", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Error", description: "Failed to connect to server.", variant: "destructive" });
+    }
+  };
+
   return (
     <ElderLayout>
       <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
         {openChatId ? (
-          <div className="animate-in fade-in slide-in-from-right-10 duration-300">
-            <Button
-              variant="ghost"
-              className="mb-4 gap-2 text-muted-foreground hover:text-foreground pl-0 hover:bg-transparent"
-              onClick={() => setOpenChatId(null)}
-            >
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                <Users className="h-4 w-4" /> {/* Actually ArrowLeft would be better but keeping simple */}
-              </div>
-              Back to All Caregivers
-            </Button>
-            <ChatInterface
-              recipientId={openChatId}
-              onClose={() => setOpenChatId(null)}
-              variant="full"
-            />
+          <div className="animate-in fade-in slide-in-from-right-10 duration-300 h-[calc(100vh-100px)] flex flex-col">
+            <div className="pb-2">
+              <Button
+                variant="ghost"
+                className="gap-2 text-muted-foreground hover:text-foreground pl-0 hover:bg-transparent"
+                onClick={() => setOpenChatId(null)}
+              >
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                  <Users className="h-4 w-4" />
+                </div>
+                Back to All Caregivers
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ChatInterface
+                recipientId={openChatId}
+                onClose={() => setOpenChatId(null)}
+              />
+            </div>
           </div>
         ) : (
           <>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              {/* ... Header content ... */}
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-secondary flex items-center justify-center">
@@ -141,7 +190,9 @@ export default function Caregivers() {
                 <p className="text-xs sm:text-sm text-muted-foreground">{t.online}</p>
               </Card>
               <Card className="text-center p-3 sm:p-4">
-                <div className="text-2xl sm:text-3xl font-bold text-secondary">4.8</div>
+                <div className="text-2xl sm:text-3xl font-bold text-secondary">
+                  {(realCaregivers.reduce((acc, c) => acc + c.rating, 0) / (realCaregivers.length || 1)).toFixed(1)}
+                </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Avg Rating</p>
               </Card>
             </div>
@@ -178,21 +229,6 @@ export default function Caregivers() {
                                 }`}
                             />
                           </div>
-
-                          {/* Mobile: Basic Info next to avatar */}
-                          <div className="flex-1 sm:hidden">
-                            <h3 className="text-lg font-semibold">{caregiver.name}</h3>
-                            <Badge variant="secondary" className="mt-1">
-                              {caregiver.role}
-                            </Badge>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {caregiver.isOnline ? (
-                                <span className="text-success font-medium">{t.online}</span>
-                              ) : (
-                                <span>{t.lastSeen} {caregiver.lastSeen}</span>
-                              )}
-                            </p>
-                          </div>
                         </div>
 
                         {/* Info */}
@@ -215,9 +251,9 @@ export default function Caregivers() {
                                     {t.online}
                                   </Badge>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">
-                                    {t.lastSeen} {caregiver.lastSeen}
-                                  </span>
+                                  <div className="flex flex-col items-end">
+                                    <span className="text-sm text-muted-foreground">{t.lastSeen} {caregiver.lastSeen}</span>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -226,8 +262,8 @@ export default function Caregivers() {
                           {/* Details Grid */}
                           <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 text-sm">
                             <div className="flex items-center gap-2 text-muted-foreground">
-                              <Star className="w-4 h-4 text-warning" />
-                              <span>{caregiver.rating} Rating</span>
+                              <Star className="w-4 h-4 text-warning fill-warning" />
+                              <span>{caregiver.rating.toFixed(1)} ({caregiver.ratingsCount} reviews)</span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="w-4 h-4" />
@@ -274,6 +310,14 @@ export default function Caregivers() {
                               <MessageCircle className="w-4 h-4" />
                               {t.chat}
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="hidden sm:inline-flex text-muted-foreground hover:text-primary"
+                              onClick={() => openRatingModal(caregiver)}
+                            >
+                              <ThumbsUp className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -303,6 +347,49 @@ export default function Caregivers() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Rating Dialog */}
+            <Dialog open={ratingModalOpen} onOpenChange={setRatingModalOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Rate {selectedCaregiver?.name}</DialogTitle>
+                  <DialogDescription>
+                    Share your feedback to help us improve our care services.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="flex flex-col items-center gap-2">
+                    <Label>Rating</Label>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setRatingValue(star)}
+                          className={`text-2xl transition-colors ${star <= ratingValue ? 'text-warning' : 'text-muted-foreground'}`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {ratingValue === 5 ? "Excellent" : ratingValue === 4 ? "Good" : ratingValue === 3 ? "Okay" : "Needs Improvement"}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Feedback (Optional)</Label>
+                    <Textarea
+                      placeholder="Write a few words about your experience..."
+                      value={ratingComment}
+                      onChange={e => setRatingComment(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setRatingModalOpen(false)}>Cancel</Button>
+                  <Button onClick={submitRating}>Submit Feedback</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </>
         )}
 

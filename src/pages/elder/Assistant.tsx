@@ -44,7 +44,7 @@ import { getGeminiResponse } from '@/lib/gemini';
 
 export default function AayuAssistant() {
   const { toast } = useToast();
-  const { user, medicines, activities } = useApp();
+  const { user, medicines, activities, settings } = useApp(); // Added settings
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -59,15 +59,137 @@ export default function AayuAssistant() {
   const [isSpeaking, setIsSpeaking] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [cameraMode, setCameraMode] = useState(false);
+  const [isConversationMode, setIsConversationMode] = useState(false); // New state for continuous mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Voice State Refs
+  const recognitionRef = useRef<any>(null);
+  const synthRef = useRef<SpeechSynthesis>(window.speechSynthesis);
+
+  // Language Mapping
+  const getLanguageTag = (lang: string) => {
+    const map: Record<string, string> = {
+      'en': 'en-US',
+      'hi': 'hi-IN',
+      'ta': 'ta-IN',
+      'te': 'te-IN',
+      'bn': 'bn-IN',
+      'mr': 'mr-IN',
+      'gu': 'gu-IN',
+      'kn': 'kn-IN',
+      'ml': 'ml-IN',
+      'pa': 'pa-IN',
+      'or': 'or-IN',
+      'as': 'as-IN'
+    };
+    return map[lang] || 'en-US';
+  };
+
+  // Improved Voice Selection
+  const getBestVoice = (langTag: string) => {
+    if (!synthRef.current) return null;
+    const voices = synthRef.current.getVoices();
+    // Prioritize Google or Microsoft "Natural" voices
+    return voices.find(v =>
+      v.lang === langTag && (v.name.includes("Google") || v.name.includes("Natural"))
+    ) || voices.find(v => v.lang === langTag) || null;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+
+
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // STT Initialization
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(transcript);
+        handleSend(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+        toast({
+          title: 'Voice Error',
+          description: 'Could not categorize speech. Please try again.',
+          variant: 'destructive'
+        });
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    } else {
+      console.warn("Web Speech API not supported in this browser.");
+    }
+
+    return () => {
+      if (recognitionRef.current) recognitionRef.current.stop();
+      if (synthRef.current) synthRef.current.cancel();
+    };
+  }, []);
+
+  // Update Recognition Language dynamically
+  useEffect(() => {
+    if (recognitionRef.current && settings?.language) {
+      recognitionRef.current.lang = getLanguageTag(settings.language);
+    }
+  }, [settings?.language]);
+
+
+  const speakText = (text: string) => {
+    if (!isSpeaking || !synthRef.current) return;
+
+    // Cancel previous speech
+    synthRef.current.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const langTag = getLanguageTag(settings?.language || 'en');
+    utterance.lang = langTag;
+
+    const bestVoice = getBestVoice(langTag);
+    if (bestVoice) {
+      utterance.voice = bestVoice;
+    }
+
+    // Tweak properties for more natural sound
+    utterance.rate = 0.95; // Slightly slower
+    utterance.pitch = 1.05; // Slightly higher/clearer
+
+    utterance.onend = () => {
+      // Continuous Conversation Logic
+      if (isConversationMode) {
+        setTimeout(() => {
+          if (!isListening) {
+            try {
+              recognitionRef.current?.start();
+              setIsListening(true);
+              toast({ description: "Listening for your reply..." });
+            } catch (e) {
+              // ignore if already started
+            }
+          }
+        }, 500); // Small pause before listening
+      }
+    };
+
+    synthRef.current.speak(utterance);
+  };
 
   const handleSend = async (text?: string) => {
     const messageText = text || inputValue.trim();
@@ -83,6 +205,11 @@ export default function AayuAssistant() {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
+
+    // Stop speaking when user sends new message
+    if (synthRef.current) synthRef.current.cancel();
+    if (recognitionRef.current) recognitionRef.current.stop(); // Stop listening while processing
+    setIsListening(false);
 
     // Check for camera mode command (local logic)
     if (messageText.toLowerCase().includes('camera')) {
@@ -100,6 +227,8 @@ export default function AayuAssistant() {
 
     const contextInfo = `
       User Name: ${user?.name || 'Elder'}
+      Language: ${settings?.language || 'en'}
+      Keep responses brief and conversational for voice interaction.
       
       Current Medicines List:
       ${myMedicines.map(m => `- ${m.name} (${m.dosage}): ${m.stock} left. Time: ${m.time}`).join('\n')}
@@ -119,6 +248,8 @@ export default function AayuAssistant() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+      speakText(responseText); // Speak the response
+
     } catch (error) {
       toast({
         title: "Error",
@@ -131,17 +262,21 @@ export default function AayuAssistant() {
   };
 
   const toggleListening = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      toast({
-        title: 'Listening...',
-        description: 'Speak your question in any language.',
-      });
-      // Simulate voice input
-      setTimeout(() => {
-        setIsListening(false);
-        setInputValue('What medicines should I take today?');
-      }, 3000);
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      setIsConversationMode(false); // Stop loop if manually stopped
+    } else {
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+        toast({
+          title: "Listening...",
+          description: `Speak in ${settings?.language === 'hi' ? 'Hindi' : 'English'}...`
+        });
+      } catch (err) {
+        console.error("Failed to start recognition:", err);
+      }
     }
   };
 
@@ -184,14 +319,42 @@ export default function AayuAssistant() {
                   variant={isListening ? 'danger' : 'default'}
                   size="icon-lg"
                   onClick={toggleListening}
-                  className="rounded-full"
+                  className={`rounded-full ${isListening ? 'animate-pulse' : ''}`}
+                  title="Single Query"
                 >
                   {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
                 </Button>
+
+                <Button
+                  variant={isConversationMode ? 'default' : 'outline'}
+                  size="icon-lg"
+                  onClick={() => {
+                    const newState = !isConversationMode;
+                    setIsConversationMode(newState);
+                    if (newState && !isListening) {
+                      toggleListening();
+                    } else if (!newState) {
+                      recognitionRef.current?.stop();
+                      synthRef.current?.cancel();
+                      setIsListening(false);
+                    }
+                  }}
+                  className={`rounded-full ${isConversationMode ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                  title="Continuous Conversation Mode"
+                >
+                  <Volume2 className="w-6 h-6" />
+                  {/* Optionally use a different icon like 'MessageCircle' or 'Activity' to denote 'Live' */}
+                </Button>
+
                 <Button
                   variant={isSpeaking ? 'default' : 'outline'}
                   size="icon-lg"
-                  onClick={() => setIsSpeaking(!isSpeaking)}
+                  onClick={() => {
+                    if (isSpeaking) {
+                      synthRef.current?.cancel();
+                    }
+                    setIsSpeaking(!isSpeaking);
+                  }}
                   className="rounded-full"
                 >
                   {isSpeaking ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
@@ -238,8 +401,8 @@ export default function AayuAssistant() {
                 >
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
                       }`}
                   >
                     <p className="whitespace-pre-wrap">{message.content}</p>
@@ -287,12 +450,12 @@ export default function AayuAssistant() {
                   variant={isListening ? 'danger' : 'outline'}
                   size="icon"
                   onClick={toggleListening}
-                  className="shrink-0"
+                  className={`shrink-0 ${isListening ? 'animate-pulse' : ''}`}
                 >
                   {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </Button>
                 <Input
-                  placeholder="Type your message or tap mic to speak..."
+                  placeholder={`Type or speak in ${settings?.language === 'hi' ? 'Hindi' : 'English'}...`}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ElderLayout } from '@/components/layout/ElderLayout';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,6 @@ import {
   Dumbbell,
   Play,
   Pause,
-  RotateCcw,
   CheckCircle2,
   Clock,
   Flame,
@@ -16,12 +15,19 @@ import {
   Sparkles,
   ChevronRight,
   Plus,
-} from 'lucide-react';
+  Activity,
+  Footprints,
+  PersonStanding,
+  Accessibility,
+  Bike,
+  Loader2
+} from 'lucide-react'; // Added more icons
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getGeminiResponse } from '@/lib/gemini';
 
 export default function Exercise() {
   const { user, exercises, toggleExercise, addExercise } = useApp();
@@ -29,6 +35,7 @@ export default function Exercise() {
   const [activeExercise, setActiveExercise] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [newExercise, setNewExercise] = useState({
     name: '',
     duration: '',
@@ -43,6 +50,73 @@ export default function Exercise() {
   const completedCount = myExercises.filter(e => e.completed).length;
   const totalCalories = myExercises.filter(e => e.completed).reduce((sum, e) => sum + e.calories, 0);
   const progressPercent = myExercises.length > 0 ? (completedCount / myExercises.length) * 100 : 0;
+
+  const getExerciseIcon = (name: string) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('walk') || lowerName.includes('run') || lowerName.includes('step')) return Footprints;
+    if (lowerName.includes('yoga') || lowerName.includes('stretch') || lowerName.includes('balance')) return Accessibility;
+    if (lowerName.includes('cycle') || lowerName.includes('bike')) return Bike;
+    if (lowerName.includes('stand') || lowerName.includes('chair')) return PersonStanding;
+    if (lowerName.includes('cardio') || lowerName.includes('aerobic')) return Activity;
+    return Dumbbell;
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!user?.height || !user?.weight) {
+      toast({
+        title: "Profile Incomplete",
+        description: "Please update your height and weight in Settings for a personalized plan.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    toast({ title: "Generating Plan...", description: "Aayu is creating a personalized workout for you." });
+
+    const prompt = `
+        Create a personalized daily exercise plan for an elder with the following profile:
+        Age: ${user.age || 70}, Gender: ${user.gender}, Height: ${user.height}cm, Weight: ${user.weight}kg.
+        Identify 3-4 simple, safe, and effective exercises.
+        Return ONLY a JSON array with objects containing:
+        - name (string, e.g., "Chair Yoga")
+        - duration (string, e.g., "10 min")
+        - calories (number)
+        - difficulty (string: "easy", "medium", "hard")
+        - instructions (string, short description)
+        Do not include markdown formatting.
+    `;
+
+    try {
+      const response = await getGeminiResponse(prompt);
+      // Clean markdown if present
+      const jsonStr = response.replace(/```json/g, '').replace(/```/g, '').trim();
+      const generatedExercises = JSON.parse(jsonStr);
+
+      if (Array.isArray(generatedExercises)) {
+        generatedExercises.forEach(ex => {
+          addExercise({
+            id: crypto.randomUUID(),
+            userId: user.id,
+            assignedBy: 'ai',
+            name: ex.name,
+            duration: ex.duration,
+            calories: ex.calories,
+            difficulty: ex.difficulty,
+            instructions: ex.instructions,
+            completed: false,
+            date: new Date().toISOString()
+          });
+        });
+        toast({ title: "Plan Ready!", description: "New exercises added to your schedule." });
+      }
+    } catch (error) {
+      console.error("Plan Generation Error:", error);
+      toast({ title: "Error", description: "Could not generate plan. Please try again.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleAdd = () => {
     if (!newExercise.name || !newExercise.duration) return;
@@ -83,55 +157,73 @@ export default function Exercise() {
               <span className="truncate">Exercise Planner</span>
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Personalized exercises for you</p>
+            {/* Debug Info - Remove later */}
+            <p className="text-xs text-muted-foreground/50 mt-1">
+              Debug: Height: {user?.height || 'null'} | Weight: {user?.weight || 'null'}
+            </p>
           </div>
 
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 shrink-0 self-start sm:self-auto">
-                <Plus className="w-4 h-4" />
-                New Exercise
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Custom Exercise</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Exercise Name</Label>
-                  <Input value={newExercise.name} onChange={e => setNewExercise({ ...newExercise, name: e.target.value })} placeholder="e.g. Morning Stretch" />
-                </div>
-                <div className="flex gap-4">
-                  <div className="space-y-2 flex-1">
-                    <Label>Duration</Label>
-                    <Input value={newExercise.duration} onChange={e => setNewExercise({ ...newExercise, duration: e.target.value })} placeholder="e.g. 5 min" />
+          <div className="flex gap-2">
+            <Button
+              variant="gradient"
+              size="sm"
+              className="gap-2 shrink-0"
+              onClick={handleGeneratePlan}
+              disabled={isGenerating}
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Generate Smart Plan
+            </Button>
+
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 shrink-0">
+                  <Plus className="w-4 h-4" />
+                  New
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                {/* ... existing dialog content ... */}
+                <DialogHeader>
+                  <DialogTitle>Add Custom Exercise</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Exercise Name</Label>
+                    <Input value={newExercise.name} onChange={e => setNewExercise({ ...newExercise, name: e.target.value })} placeholder="e.g. Morning Stretch" />
                   </div>
-                  <div className="space-y-2 flex-1">
-                    <Label>Calories</Label>
-                    <Input type="number" value={newExercise.calories} onChange={e => setNewExercise({ ...newExercise, calories: e.target.value })} placeholder="e.g. 50" />
+                  <div className="flex gap-4">
+                    <div className="space-y-2 flex-1">
+                      <Label>Duration</Label>
+                      <Input value={newExercise.duration} onChange={e => setNewExercise({ ...newExercise, duration: e.target.value })} placeholder="e.g. 5 min" />
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <Label>Calories</Label>
+                      <Input type="number" value={newExercise.calories} onChange={e => setNewExercise({ ...newExercise, calories: e.target.value })} placeholder="e.g. 50" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Difficulty</Label>
+                    <Select value={newExercise.difficulty} onValueChange={v => setNewExercise({ ...newExercise, difficulty: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Instructions</Label>
+                    <Input value={newExercise.instructions} onChange={e => setNewExercise({ ...newExercise, instructions: e.target.value })} placeholder="Short description..." />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Difficulty</Label>
-                  <Select value={newExercise.difficulty} onValueChange={v => setNewExercise({ ...newExercise, difficulty: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Instructions</Label>
-                  <Input value={newExercise.instructions} onChange={e => setNewExercise({ ...newExercise, instructions: e.target.value })} placeholder="Short description..." />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleAdd}>Add to Plan</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button onClick={handleAdd}>Add to Plan</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -164,8 +256,8 @@ export default function Exercise() {
             <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-danger/10 flex items-center justify-center mx-auto mb-1 md:mb-2">
               <Heart className="w-4 h-4 md:w-6 md:h-6 text-danger" />
             </div>
-            <p className="text-lg md:text-2xl font-bold">3</p>
-            <p className="text-[10px] md:text-sm text-muted-foreground">Streak</p>
+            <p className="text-lg md:text-2xl font-bold">Mix</p>
+            <p className="text-[10px] md:text-sm text-muted-foreground">Focus</p>
           </Card>
         </div>
 
@@ -182,73 +274,85 @@ export default function Exercise() {
             <CardContent className="space-y-2 px-4 md:px-6 pb-4">
               {myExercises.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No exercises added yet. Click "New Exercise" or wait for your caregiver to assign some.
+                  <Sparkles className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p>No exercises yet.</p>
+                  <p className="text-xs mt-1">Click "Generate Smart Plan" to get started!</p>
                 </div>
               ) : (
-                myExercises.map((exercise, index) => (
-                  <div
-                    key={exercise.id}
-                    className={`flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-xl transition-all ${exercise.completed
+                myExercises.map((exercise, index) => {
+                  const Icon = getExerciseIcon(exercise.name);
+                  return (
+                    <div
+                      key={exercise.id}
+                      className={`flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-xl transition-all ${exercise.completed
                         ? 'bg-success/10'
                         : activeExercise === exercise.id
                           ? 'bg-primary/10'
                           : 'bg-muted'
-                      }`}
-                  >
-                    <button
-                      onClick={() => toggleExercise(exercise.id)}
-                      className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 text-xs md:text-sm ${exercise.completed
-                          ? 'bg-success text-success-foreground'
-                          : 'bg-muted-foreground/20 text-muted-foreground'
                         }`}
                     >
-                      {exercise.completed ? (
-                        <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
-                      ) : (
-                        <span className="font-medium">{index + 1}</span>
-                      )}
-                    </button>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className={`font-medium text-sm md:text-base truncate ${exercise.completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {exercise.name}
-                        </h4>
-                        {exercise.assignedBy !== 'self' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Assigned by Caregiver</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-[10px] md:text-xs flex items-center gap-0.5 text-muted-foreground">
-                          <Clock className="w-3 h-3" /> {exercise.duration}
-                        </span>
-                        <span className="text-[10px] md:text-xs flex items-center gap-0.5 text-muted-foreground">
-                          <Flame className="w-3 h-3" /> {exercise.calories}
-                        </span>
-                        <span className={`text-[10px] md:text-xs px-1.5 py-0.5 rounded-full ${exercise.difficulty === 'easy' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
-                          }`}>
-                          {exercise.difficulty}
-                        </span>
-                      </div>
-                    </div>
-
-                    {!exercise.completed && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => startExercise(exercise.id)}
-                        className="shrink-0 w-8 h-8"
+                      {/* Status / Number Button */}
+                      <button
+                        onClick={() => toggleExercise(exercise.id)}
+                        className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${exercise.completed
+                          ? 'bg-success text-success-foreground'
+                          : 'bg-background shadow-sm text-muted-foreground'
+                          }`}
                       >
-                        {activeExercise === exercise.id && isPlaying ? (
-                          <Pause className="w-4 h-4" />
+                        {exercise.completed ? (
+                          <CheckCircle2 className="w-5 h-5" />
                         ) : (
-                          <Play className="w-4 h-4" />
+                          <Icon className="w-5 h-5 text-primary" />
                         )}
-                      </Button>
-                    )}
-                  </div>
-                ))
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className={`font-medium text-sm md:text-base truncate ${exercise.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {exercise.name}
+                          </h4>
+                          {exercise.assignedBy === 'ai' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">AI Plan</span>
+                          )}
+                          {exercise.assignedBy !== 'self' && exercise.assignedBy !== 'ai' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Assigned</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-[10px] md:text-xs flex items-center gap-0.5 text-muted-foreground">
+                            <Clock className="w-3 h-3" /> {exercise.duration}
+                          </span>
+                          <span className="text-[10px] md:text-xs flex items-center gap-0.5 text-muted-foreground">
+                            <Flame className="w-3 h-3" /> {exercise.calories}
+                          </span>
+                          <span className={`text-[10px] md:text-xs px-1.5 py-0.5 rounded-full capitalize ${exercise.difficulty === 'easy' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                            }`}>
+                            {exercise.difficulty}
+                          </span>
+                        </div>
+                        {(!exercise.completed && exercise.instructions) && (
+                          <p className="text-xs text-muted-foreground mt-1 truncate">{exercise.instructions}</p>
+                        )}
+                      </div>
+
+                      {!exercise.completed && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startExercise(exercise.id)}
+                          className="shrink-0 w-8 h-8"
+                        >
+                          {activeExercise === exercise.id && isPlaying ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </CardContent>
           </Card>
@@ -264,11 +368,12 @@ export default function Exercise() {
                   </div>
                   <div className="min-w-0">
                     <h4 className="font-semibold text-sm">AI Tip</h4>
-                    <p className="text-xs text-muted-foreground">For you</p>
+                    <p className="text-xs text-muted-foreground">Based on your activity</p>
                   </div>
                 </div>
                 <p className="text-sm mb-3">
-                  Try a 5-min walk after lunch to boost energy!
+                  {user?.weight ? `At ${user.weight}kg, staying active is great! ` : ''}
+                  Try shorter, more frequent walks to keep your energy up throughout the day.
                 </p>
                 <Button variant="outline" size="sm" className="w-full text-xs">
                   More Tips

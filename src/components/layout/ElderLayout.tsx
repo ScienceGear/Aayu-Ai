@@ -28,6 +28,7 @@ import {
   Sun,
   Moon,
   Phone,
+  Flower,
 } from 'lucide-react';
 
 export function ElderLayout({ children }: { children: React.ReactNode }) {

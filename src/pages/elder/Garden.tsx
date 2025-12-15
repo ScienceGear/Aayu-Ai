@@ -18,6 +18,7 @@ import {
   Timer
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Meditation from './Meditation';
 
 interface Plant {
   id: string;
@@ -151,8 +152,8 @@ export default function VirtualGarden() {
                       key={plant.id}
                       onClick={() => setSelectedPlant(plant)}
                       className={`aspect-square rounded-2xl p-4 flex flex-col items-center justify-center transition-all hover:scale-105 ${selectedPlant?.id === plant.id
-                          ? 'bg-card ring-2 ring-primary shadow-lg'
-                          : 'bg-card/50 hover:bg-card'
+                        ? 'bg-card ring-2 ring-primary shadow-lg'
+                        : 'bg-card/50 hover:bg-card'
                         }`}
                     >
                       <span className="text-4xl mb-2">{getPlantEmoji(plant)}</span>
@@ -218,8 +219,8 @@ export default function VirtualGarden() {
                     >
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center ${achievement.unlocked
-                            ? 'bg-warning text-warning-foreground'
-                            : 'bg-muted-foreground/20 text-muted-foreground'
+                          ? 'bg-warning text-warning-foreground'
+                          : 'bg-muted-foreground/20 text-muted-foreground'
                           }`}
                       >
                         <Award className="w-6 h-6" />
@@ -241,55 +242,7 @@ export default function VirtualGarden() {
           </TabsContent>
 
           <TabsContent value="meditate" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card variant="gradient">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-accent" />
-                    Guided Breathing
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 text-center">
-                  <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-                    <div className="absolute inset-0 bg-accent/20 rounded-full animate-ping opacity-25" style={{ animationDuration: '4s' }}></div>
-                    <div className="absolute inset-4 bg-accent/30 rounded-full breathe"></div>
-                    <div className="z-10 text-accent-foreground font-medium">
-                      Breathe In...
-                    </div>
-                  </div>
-                  <p className="text-muted-foreground">Follow the circle's rhythm. Inhale as it expands, exhale as it shrinks.</p>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Timer className="w-5 h-5 text-primary" />
-                    Meditation Timer
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="text-center py-8">
-                    <span className="text-6xl font-bold font-mono tracking-wider">
-                      {formatTime(timeLeft)}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 mb-6">
-                    <Button variant="outline" onClick={() => { setTimeLeft(300); setTimerActive(false); }}>5 Min</Button>
-                    <Button variant="outline" onClick={() => { setTimeLeft(600); setTimerActive(false); }}>10 Min</Button>
-                    <Button variant="outline" onClick={() => { setTimeLeft(900); setTimerActive(false); }}>15 Min</Button>
-                  </div>
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    variant={timerActive ? "destructive" : "default"}
-                    onClick={() => setTimerActive(!timerActive)}
-                  >
-                    {timerActive ? <><Pause className="mr-2 h-5 w-5" /> Pause</> : <><Play className="mr-2 h-5 w-5" /> Start Session</>}
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            <Meditation />
           </TabsContent>
 
           <TabsContent value="relax" className="space-y-6">
