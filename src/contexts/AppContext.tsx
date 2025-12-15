@@ -1,5 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { io, Socket } from 'socket.io-client';
+
+const getBaseUrl = () => {
+  const hostname = window.location.hostname;
+  // If running completely locally
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5000';
+  }
+  // If running on network (e.g. 192.168.x.x)
+  return `http://${hostname}:5000`;
+};
+
+const BASE_URL = getBaseUrl();
+const API_URL = `${BASE_URL}/api`;
 
 export type UserRole = 'elder' | 'caregiver' | 'organization' | null;
 export type TextSize = 'medium' | 'large' | 'xlarge';
@@ -22,15 +36,15 @@ export interface User {
 
 export interface Exercise {
   id: string;
-  userId: string; // The elder this is assigned to
-  assignedBy: string; // 'self' or caregiverId
+  userId: string;
+  assignedBy: string;
   name: string;
   duration: string;
   calories: number;
   completed: boolean;
   instructions: string;
   difficulty: ExerciseDifficulty;
-  date: string; // ISO date string
+  date: string;
 }
 
 export interface Medicine {
@@ -42,6 +56,23 @@ export interface Medicine {
   time: string;
   stock: number;
   taken: boolean;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  timestamp: string;
+  type: 'text' | 'image';
+}
+
+export interface Call {
+  id: string;
+  participants: string[];
+  type: 'voice' | 'video';
+  status: 'calling' | 'connected' | 'ended';
+  startTime?: string;
 }
 
 interface Settings {
@@ -58,17 +89,16 @@ interface AppContextType {
   setUser: (user: User | null) => void;
   settings: Settings;
   updateSettings: (settings: Partial<Settings>) => void;
+  updateUser: (updatedData: Partial<User>) => void;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   signup: (userData: Partial<User>, password: string) => Promise<boolean>;
 
-  // Organization / Admin
   users: User[];
   addUser: (newUser: User) => void;
   removeUser: (userId: string) => void;
 
-  // Care / Exercises / Medicines
   exercises: Exercise[];
   medicines: Medicine[];
   addExercise: (exercise: Exercise) => void;
@@ -77,6 +107,15 @@ interface AppContextType {
   addMedicine: (medicine: Medicine) => void;
   removeMedicine: (id: string) => void;
   toggleMedicine: (id: string) => void;
+
+  messages: Message[];
+  sendMessage: (receiverId: string, content: string) => void;
+  activeCall: Call | null;
+  startCall: (receiverId: string, type: 'voice' | 'video') => void;
+  endCall: () => void;
+  incomingCall: { callId: string, callerId: string, callerName: string, signal: any, type: 'voice' | 'video' } | null;
+  answerCall: () => void;
+  rejectCall: () => void;
 }
 
 const defaultSettings: Settings = {
@@ -88,76 +127,107 @@ const defaultSettings: Settings = {
   voicePreference: 'female',
 };
 
-const DEMO_USERS: User[] = [
-  {
-    id: 'demo-elder-1',
-    name: 'Ramesh Gupta',
-    email: 'elder@aayu.com',
-    password: 'password123',
-    role: 'elder',
-    profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=elder',
-    age: 72,
-    gender: 'male',
-  },
-  {
-    id: 'demo-caregiver-1',
-    name: 'Sarah Wilson',
-    email: 'caregiver@aayu.com',
-    password: 'password123',
-    role: 'caregiver',
-    profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=caregiver',
-    phone: '+91 98765 43210',
-  },
-  {
-    id: 'demo-org-1',
-    name: 'Aayu Health Admin',
-    email: 'admin@aayu.com',
-    password: 'password123',
-    role: 'organization',
-    profilePic: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-  }
-];
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [users, setUsers] = useState<User[]>(DEMO_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [activeCall, setActiveCall] = useState<Call | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ callId: string, callerId: string, callerName: string, signal: any, type: 'voice' | 'video' } | null>(null);
   const { toast } = useToast();
 
-  // Load / Persist Logic
+  const socketRef = useRef<Socket | null>(null);
+
+  // Initialize Data & Socket
   useEffect(() => {
+    // Connect Socket
+    socketRef.current = io(BASE_URL);
+
+    socketRef.current.on('connect', () => {
+      console.log('Connected to socket server');
+    });
+
+    socketRef.current.on('receive_message', (data: Message) => {
+      setMessages(prev => [...prev, data]);
+      toast({ title: 'New Message', description: 'You received a message.' });
+    });
+
+    socketRef.current.on('call_user', (data: any) => {
+      console.log("Incoming call:", data);
+      setIncomingCall({
+        callId: crypto.randomUUID(),
+        callerId: data.from,
+        callerName: data.name || 'Unknown',
+        signal: data.signal,
+        type: 'video' // Defaulting to video for now as signal doesn't carry type in current backend
+      });
+      // Play ringtone logic could go here or in the component
+    });
+
+    socketRef.current.on('call_accepted', (signal: any) => {
+      console.log("Call accepted");
+      setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+      // Here we would pass 'signal' to the WebRTC peer connection
+    });
+
+    socketRef.current.on('call_ended', () => {
+      console.log("Call ended by remote");
+      setActiveCall(null);
+      setIncomingCall(null);
+      toast({ description: 'Call ended' });
+    });
+
+    // Fetch Initial Data
+    fetchInitialData();
+
+    // Load Settings
     const savedSettings = localStorage.getItem('aayu-settings');
     if (savedSettings) setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
 
     const savedUser = localStorage.getItem('aayu-user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      socketRef.current?.emit('join_room', parsedUser.id);
+    }
 
-    const savedUsersDB = localStorage.getItem('aayu-users-db');
-    if (savedUsersDB) setUsers(JSON.parse(savedUsersDB));
-
-    const savedExercises = localStorage.getItem('aayu-exercises');
-    if (savedExercises) setExercises(JSON.parse(savedExercises));
-
-    const savedMedicines = localStorage.getItem('aayu-medicines');
-    if (savedMedicines) setMedicines(JSON.parse(savedMedicines));
+    return () => {
+      socketRef.current?.disconnect();
+    };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('aayu-users-db', JSON.stringify(users));
-  }, [users]);
+  const fetchInitialData = async () => {
+    try {
+      const [usersRes, exercisesRes, medicinesRes] = await Promise.all([
+        fetch(`${API_URL}/users`),
+        fetch(`${API_URL}/care/exercises`),
+        fetch(`${API_URL}/care/medicines`)
+      ]);
 
-  useEffect(() => {
-    localStorage.setItem('aayu-exercises', JSON.stringify(exercises));
-  }, [exercises]);
+      if (usersRes.ok) setUsers(await usersRes.json());
+      if (exercisesRes.ok) setExercises(await exercisesRes.json());
+      if (medicinesRes.ok) setMedicines(await medicinesRes.json());
 
-  useEffect(() => {
-    localStorage.setItem('aayu-medicines', JSON.stringify(medicines));
-  }, [medicines]);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    }
+  };
 
+  // Fetch messages when user changes
+  useEffect(() => {
+    if (user) {
+      fetch(`${API_URL}/messages/${user.id}`)
+        .then(res => res.json())
+        .then(data => setMessages(data))
+        .catch(err => console.error(err));
+    }
+  }, [user]);
+
+  // Settings Effect
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
     document.documentElement.classList.remove('text-size-medium', 'text-size-large', 'text-size-xlarge');
@@ -169,91 +239,234 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSettings(prev => ({ ...prev, ...newSettings }));
   };
 
+  // --- Auth ---
   const login = async (email: string, password: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (foundUser?.password === password) {
-      setUser(foundUser);
-      localStorage.setItem('aayu-user', JSON.stringify(foundUser));
-      return true;
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data);
+        localStorage.setItem('aayu-user', JSON.stringify(data));
+        socketRef.current?.emit('join_room', data.id);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (err) {
+      console.error(err);
+      return false;
     }
-    return false;
   };
 
   const signup = async (userData: Partial<User>, password: string): Promise<boolean> => {
-    // ... (same as before)
-    await new Promise(resolve => setTimeout(resolve, 800));
-    if (users.some(u => u.email.toLowerCase() === userData.email?.toLowerCase())) {
-      toast({ title: 'Email already registered', description: 'Please use a different email or login.', variant: 'destructive' });
+    try {
+      const newUser = {
+        id: crypto.randomUUID(), // Or let backend handle ID
+        ...userData,
+        password
+      };
+      const res = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data);
+        setUsers(prev => [...prev, data]);
+        localStorage.setItem('aayu-user', JSON.stringify(data));
+        socketRef.current?.emit('join_room', data.id);
+        return true;
+      } else {
+        const err = await res.json();
+        console.error("Signup failed:", err);
+        toast({ title: 'Registration Failed', description: err.message || 'Validation error', variant: 'destructive' });
+        return false;
+      }
+    } catch (err) {
+      console.error("Signup exception:", err);
       return false;
     }
-    const newUser: User = {
-      id: crypto.randomUUID(),
-      name: userData.name || 'User',
-      email: userData.email || '',
-      password: password,
-      role: userData.role || 'elder',
-      profilePic: userData.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.email}`,
-      phone: userData.phone,
-      age: userData.age,
-      gender: userData.gender,
-      bloodGroup: userData.bloodGroup,
-      emergencyContacts: userData.emergencyContacts,
-    };
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    setUser(newUser);
-    localStorage.setItem('aayu-user', JSON.stringify(newUser));
-    return true;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('aayu-user');
+    window.location.href = '/login';
   };
 
-  const addUser = (newUser: User) => {
-    const updated = [...users, { ...newUser, id: crypto.randomUUID() }];
-    setUsers(updated);
+  // --- User Management ---
+  const addUser = async (newUser: User) => {
+    await signup({ ...newUser, password: 'password123' }, 'password123'); // Hacky reuse of signup
     toast({ title: 'Success', description: 'User added successfully.' });
   };
 
-  const removeUser = (userId: string) => {
-    if (userId.startsWith('demo-')) {
-      toast({ title: 'Action Denied', description: 'Cannot delete core demo accounts.', variant: 'destructive' });
-      return;
-    }
-    const updated = users.filter(u => u.id !== userId);
-    setUsers(updated);
+  const removeUser = async (userId: string) => {
+    await fetch(`${API_URL}/users/${userId}`, { method: 'DELETE' });
+    setUsers(users.filter(u => u.id !== userId));
     toast({ title: 'User Removed', description: 'The user account has been deleted.' });
   };
 
-  // --- Care Logic ---
-  const addExercise = (exercise: Exercise) => {
-    setExercises(prev => [...prev, exercise]);
-    toast({ title: 'Plan Updated', description: 'New exercise added.' });
+  const updateUser = async (updatedData: Partial<User>) => {
+    if (!user) return;
+    const res = await fetch(`${API_URL}/users/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedData)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setUser(data);
+      localStorage.setItem('aayu-user', JSON.stringify(data));
+      setUsers(users.map(u => u.id === user.id ? data : u));
+      toast({ title: 'Profile Updated', description: 'Your information has been saved.' });
+    }
   };
 
-  const removeExercise = (id: string) => {
+  // --- Care Logic ---
+  const addExercise = async (exercise: Exercise) => {
+    const res = await fetch(`${API_URL}/care/exercises`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(exercise)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setExercises(prev => [...prev, data]);
+      toast({ title: 'Plan Updated', description: 'New exercise added.' });
+    }
+  };
+
+  const removeExercise = async (id: string) => {
+    await fetch(`${API_URL}/care/exercises/${id}`, { method: 'DELETE' });
     setExercises(prev => prev.filter(e => e.id !== id));
     toast({ title: 'Removed', description: 'Exercise removed from plan.' });
   };
 
-  const toggleExercise = (id: string) => {
-    setExercises(prev => prev.map(e => e.id === id ? { ...e, completed: !e.completed } : e));
+  const toggleExercise = async (id: string) => {
+    // Optimistic update
+    const ex = exercises.find(e => e.id === id);
+    if (!ex) return;
+    const updated = { ...ex, completed: !ex.completed };
+
+    setExercises(prev => prev.map(e => e.id === id ? updated : e));
+    await fetch(`${API_URL}/care/exercises/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
   };
 
-  const addMedicine = (medicine: Medicine) => {
-    setMedicines(prev => [...prev, medicine]);
-    toast({ title: 'Medicine Added', description: 'New medicine tracked.' });
+  const addMedicine = async (medicine: Medicine) => {
+    const res = await fetch(`${API_URL}/care/medicines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(medicine)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setMedicines(prev => [...prev, data]);
+      toast({ title: 'Medicine Added', description: 'New medicine tracked.' });
+    }
   };
 
-  const removeMedicine = (id: string) => {
+  const removeMedicine = async (id: string) => {
+    await fetch(`${API_URL}/care/medicines/${id}`, { method: 'DELETE' });
     setMedicines(prev => prev.filter(m => m.id !== id));
   };
 
-  const toggleMedicine = (id: string) => {
-    setMedicines(prev => prev.map(m => m.id === id ? { ...m, taken: !m.taken } : m));
+  const toggleMedicine = async (id: string) => {
+    const med = medicines.find(m => m.id === id);
+    if (!med) return;
+    const updated = { ...med, taken: !med.taken };
+
+    setMedicines(prev => prev.map(m => m.id === id ? updated : m));
+    await fetch(`${API_URL}/care/medicines/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+  };
+
+  // --- Communication Logic ---
+  const sendMessage = async (receiverId: string, content: string) => {
+    if (!user) return;
+    const newMessage = {
+      id: crypto.randomUUID(),
+      senderId: user.id,
+      receiverId,
+      content,
+      timestamp: new Date().toISOString(),
+      type: 'text',
+    };
+
+    // Save to DB
+    await fetch(`${API_URL}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newMessage)
+    });
+
+    // Emit via Socket
+    socketRef.current?.emit('send_message', newMessage);
+
+    // Update Local State
+    setMessages(prev => [...prev, newMessage as Message]);
+  };
+
+  const startCall = (receiverId: string, type: 'voice' | 'video') => {
+    if (!user) return;
+    setActiveCall({
+      id: crypto.randomUUID(),
+      participants: [user.id, receiverId],
+      type,
+      status: 'calling',
+      startTime: new Date().toISOString(),
+    });
+
+    // Emit call event
+    socketRef.current?.emit('call_user', {
+      userToCall: receiverId,
+      signalData: {}, // Placeholder for WebRTC offer
+      from: user.id,
+      name: user.name
+    });
+  };
+
+  const endCall = () => {
+    const receiverId = activeCall?.participants.find(p => p !== user?.id);
+    if (receiverId) {
+      socketRef.current?.emit('end_call', { to: receiverId });
+    }
+    setActiveCall(null);
+    setIncomingCall(null);
+  };
+
+  const answerCall = () => {
+    if (!incomingCall || !user) return;
+    setActiveCall({
+      id: incomingCall.callId,
+      participants: [user.id, incomingCall.callerId],
+      type: incomingCall.type,
+      status: 'connected',
+      startTime: new Date().toISOString()
+    });
+    setIncomingCall(null);
+
+    socketRef.current?.emit('answer_call', { signal: {}, to: incomingCall.callerId });
+  };
+
+  const rejectCall = () => {
+    if (!incomingCall) return;
+    socketRef.current?.emit('end_call', { to: incomingCall.callerId });
+    setIncomingCall(null);
   };
 
   return (
@@ -262,7 +475,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         user, setUser, settings, updateSettings, isAuthenticated: !!user,
         login, logout, signup, users, addUser, removeUser,
         exercises, medicines, addExercise, removeExercise, toggleExercise,
-        addMedicine, removeMedicine, toggleMedicine
+        addMedicine, removeMedicine, toggleMedicine, updateUser,
+        messages, sendMessage, activeCall, startCall, endCall,
+        incomingCall, answerCall, rejectCall
       }}
     >
       {children}

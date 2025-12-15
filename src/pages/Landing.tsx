@@ -99,9 +99,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-              <Bot className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <img src="/logo.png" alt="Aayu AI" className="w-10 h-10 rounded-xl object-cover" />
             <span className="text-xl font-bold">Aayu AI</span>
           </Link>
 
@@ -140,24 +138,22 @@ export default function Landing() {
               <Star className="w-4 h-4" />
               <span className="text-sm font-medium">Trusted Elder Care Platform</span>
             </div>
-            
+
             <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in stagger-1">
               Your Personal{' '}
               <span className="text-primary">AI Health Companion</span>
             </h1>
-            
+
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in stagger-2">
-              Bridging the gap between elders and caregivers with intelligent health monitoring, 
+              Bridging the gap between elders and caregivers with intelligent health monitoring,
               multilingual AI assistance, and compassionate care coordination.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in stagger-3">
-              <Link to="/signup">
-                <Button variant="hero" size="xl">
-                  Start Your Journey
-                  <ChevronRight className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
+              <Button variant="hero" size="xl" onClick={() => window.location.href = '/signup'}>
+                Start Your Journey
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </Button>
               <Link to="/login">
                 <Button variant="hero-secondary" size="xl">
                   I Already Have an Account
@@ -234,15 +230,13 @@ export default function Landing() {
                 className="animate-fade-in overflow-hidden"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className={`h-2 ${
-                  role.color === 'primary' ? 'bg-primary' :
+                <div className={`h-2 ${role.color === 'primary' ? 'bg-primary' :
                   role.color === 'secondary' ? 'bg-secondary' : 'bg-accent'
-                }`} />
+                  }`} />
                 <CardContent className="p-6">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${
-                    role.color === 'primary' ? 'bg-primary/10 text-primary' :
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${role.color === 'primary' ? 'bg-primary/10 text-primary' :
                     role.color === 'secondary' ? 'bg-secondary/10 text-secondary' : 'bg-accent/10 text-accent'
-                  }`}>
+                    }`}>
                     <role.icon className="w-7 h-7" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">{role.title}</h3>
@@ -250,10 +244,9 @@ export default function Landing() {
                   <ul className="space-y-2">
                     {role.features.map((feature, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm">
-                        <ChevronRight className={`w-4 h-4 ${
-                          role.color === 'primary' ? 'text-primary' :
+                        <ChevronRight className={`w-4 h-4 ${role.color === 'primary' ? 'text-primary' :
                           role.color === 'secondary' ? 'text-secondary' : 'text-accent'
-                        }`} />
+                          }`} />
                         {feature}
                       </li>
                     ))}
@@ -274,10 +267,10 @@ export default function Landing() {
                 Built for <span className="text-primary">Accessibility</span>
               </h2>
               <p className="text-muted-foreground mb-8">
-                Every feature is designed with our elders in mind - large text options, 
+                Every feature is designed with our elders in mind - large text options,
                 high contrast modes, voice control, and support for all major Indian languages.
               </p>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -290,7 +283,7 @@ export default function Landing() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
                     <Accessibility className="w-5 h-5 text-secondary" />
@@ -302,7 +295,7 @@ export default function Landing() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
                     <Brain className="w-5 h-5 text-accent" />
@@ -321,15 +314,13 @@ export default function Landing() {
               <Card variant="elevated" className="p-8">
                 <div className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center">
-                      <Bot className="w-8 h-8 text-primary-foreground" />
-                    </div>
+                    <img src="/logo.png" alt="Aayu AI" className="w-16 h-16 rounded-full object-cover" />
                     <div>
                       <h4 className="font-semibold text-lg">नमस्ते! मैं आयु हूँ</h4>
                       <p className="text-muted-foreground">Hello! I am Aayu</p>
                     </div>
                   </div>
-                  
+
                   <div className="bg-muted rounded-xl p-4">
                     <p className="text-sm">
                       "आप आज कैसा महसूस कर रहे हैं? क्या मैं आपकी दवाई याद दिला दूं?"
@@ -338,7 +329,7 @@ export default function Landing() {
                       "How are you feeling today? Should I remind you about your medicine?"
                     </p>
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline">बहुत अच्छा 😊</Button>
                     <Button size="sm" variant="outline">ठीक हूँ 😐</Button>
@@ -378,12 +369,10 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <img src="/logo.png" alt="Aayu AI" className="w-8 h-8 rounded-lg object-cover" />
               <span className="font-semibold">Aayu AI</span>
             </div>
-            
+
             <p className="text-sm text-muted-foreground">
               © 2024 Aayu AI. Made with ❤️ for our elders in India.
             </p>

@@ -19,11 +19,12 @@ import Settings from "@/pages/elder/Settings";
 import Exercise from "@/pages/elder/Exercise";
 import ElderCaregivers from "@/pages/elder/Caregivers"; // Renamed to avoid conflict
 import ElderReports from "@/pages/elder/Reports";
+import { IncomingCall } from "@/components/communication/IncomingCall";
 
 // Caregiver Pages
 import CaregiverDashboard from "@/pages/caregiver/Dashboard";
 import CaregiverSettings from "@/pages/caregiver/Settings";
-
+import CaregiverMessages from "@/pages/caregiver/Messages";
 // Organization Pages
 import OrganizationDashboard from "@/pages/organization/Dashboard";
 import OrganizationCaregivers from "@/pages/organization/Caregivers";
@@ -77,7 +78,7 @@ function AppRoutes() {
       <Route path="/caregiver" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
       <Route path="/caregiver/elders" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
       <Route path="/caregiver/reports" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
-      <Route path="/caregiver/messages" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
+      <Route path="/caregiver/messages" element={<ProtectedRoute><CaregiverMessages /></ProtectedRoute>} />
       <Route path="/caregiver/settings" element={<ProtectedRoute><CaregiverSettings /></ProtectedRoute>} />
 
       {/* Organization Routes */}
@@ -97,6 +98,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <IncomingCall />
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>

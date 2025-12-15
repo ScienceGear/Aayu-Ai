@@ -18,6 +18,7 @@ import {
     AlertTriangle,
     Settings,
     LogOut,
+    User,
     Menu,
     Sun,
     Moon,
@@ -35,7 +36,6 @@ export function OrganizationLayout({ children }: { children: React.ReactNode }) 
         { icon: LayoutDashboard, label: t.dashboard, path: '/organization' },
         { icon: Users, label: t.caregivers, path: '/organization/caregivers' },
         { icon: AlertTriangle, label: t.sosAlerts, path: '/organization/alerts' },
-        { icon: Settings, label: t.settings, path: '/organization/settings' },
     ];
 
     const handleLogout = () => {
@@ -59,16 +59,14 @@ export function OrganizationLayout({ children }: { children: React.ReactNode }) 
 
             {/* Sidebar */}
             <aside
-                className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+                className={`fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
                     }`}
             >
                 <div className="flex flex-col h-full">
                     {/* Logo */}
                     <div className="p-6 border-b border-sidebar-border">
                         <Link to="/organization" className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                                <Building className="w-6 h-6 text-white" />
-                            </div>
+                            <img src="/logo.png" alt="Aayu AI" className="w-10 h-10 rounded-xl object-cover" />
                             <span className="text-xl font-bold text-sidebar-foreground">{t.orgAdmin}</span>
                         </Link>
                     </div>

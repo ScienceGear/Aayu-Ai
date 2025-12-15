@@ -23,6 +23,7 @@ import {
   Dumbbell,
   Settings,
   LogOut,
+  User,
   Menu,
   Sun,
   Moon,
@@ -45,7 +46,6 @@ export function ElderLayout({ children }: { children: React.ReactNode }) {
     { icon: AlertTriangle, label: t.emergency, path: '/elder/emergency' },
     { icon: Users, label: t.caregivers, path: '/elder/caregivers' },
     { icon: Dumbbell, label: t.exercise, path: '/elder/exercise' },
-    { icon: Settings, label: t.settings, path: '/elder/settings' },
   ];
 
   const handleLogout = () => {
@@ -69,16 +69,14 @@ export function ElderLayout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           }`}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-sidebar-border">
             <Link to="/elder" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <Bot className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <img src="/logo.png" alt="Aayu AI" className="w-10 h-10 rounded-xl object-cover" />
               <span className="text-xl font-bold text-sidebar-foreground">{t.appName}</span>
             </Link>
           </div>
@@ -93,8 +91,8 @@ export function ElderLayout({ children }: { children: React.ReactNode }) {
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent'
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent'
                     }`}
                 >
                   <item.icon className="w-5 h-5" />

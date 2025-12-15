@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { ElderLayout } from '@/components/layout/ElderLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from '@/lib/translations';
+import { ChatInterface } from '@/components/communication/ChatInterface';
+import { VideoCallInterface } from '@/components/communication/VideoCallInterface';
 import {
   Users,
   Phone,
@@ -37,66 +39,39 @@ interface Caregiver {
   assignedSince: string;
 }
 
-const mockCaregivers: Caregiver[] = [
-  {
-    id: '1',
-    name: 'Dr. Priya Sharma',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=priya',
-    role: 'Primary Caregiver',
-    specialization: 'Geriatric Care',
-    phone: '+91 98765 43210',
-    email: 'priya.sharma@care.com',
-    isOnline: true,
-    rating: 4.9,
-    experience: '8 years',
-    location: 'Mumbai, Maharashtra',
-    assignedSince: 'Jan 2024',
-  },
-  {
-    id: '2',
-    name: 'Rajesh Kumar',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=rajesh',
-    role: 'Health Assistant',
-    specialization: 'Physical Therapy',
-    phone: '+91 87654 32109',
-    email: 'rajesh.kumar@care.com',
-    isOnline: false,
-    lastSeen: '2 hours ago',
-    rating: 4.7,
-    experience: '5 years',
-    location: 'Mumbai, Maharashtra',
-    assignedSince: 'Mar 2024',
-  },
-  {
-    id: '3',
-    name: 'Sunita Patel',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sunita',
-    role: 'Nurse',
-    specialization: 'Medicine Management',
-    phone: '+91 76543 21098',
-    email: 'sunita.patel@care.com',
-    isOnline: true,
-    rating: 4.8,
-    experience: '10 years',
-    location: 'Pune, Maharashtra',
-    assignedSince: 'Feb 2024',
-  },
-];
-
 export default function Caregivers() {
-  const { settings } = useApp();
+  const { settings, users, startCall, activeCall } = useApp();
   const t = useTranslation(settings.language);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCaregiver, setSelectedCaregiver] = useState<Caregiver | null>(null);
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
 
-  const filteredCaregivers = mockCaregivers.filter(
+  // Filter real users with role 'caregiver' and map to Caregiver interface
+  const realCaregivers: Caregiver[] = users
+    .filter(u => u.role === 'caregiver')
+    .map(u => ({
+      id: u.id,
+      name: u.name,
+      avatar: u.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`,
+      role: 'Caregiver', // Default label
+      specialization: 'General Assistance', // Default
+      phone: u.phone || 'Not provided',
+      email: u.email,
+      isOnline: true, // Mock status for now
+      rating: 5.0, // Default
+      experience: 'Experienced', // Default
+      location: 'On Call', // Default
+      assignedSince: '2024', // Default
+    }));
+
+  const filteredCaregivers = realCaregivers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.specialization.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleCall = (caregiver: Caregiver, type: 'voice' | 'video') => {
+    startCall(caregiver.id, type);
     toast({
       title: type === 'voice' ? t.callCaregiver : t.videoCall,
       description: `Connecting to ${caregiver.name}...`,
@@ -104,10 +79,7 @@ export default function Caregivers() {
   };
 
   const handleChat = (caregiver: Caregiver) => {
-    toast({
-      title: t.chat,
-      description: `Opening chat with ${caregiver.name}...`,
-    });
+    setOpenChatId(caregiver.id);
   };
 
   return (
@@ -124,7 +96,7 @@ export default function Caregivers() {
             </h1>
             <p className="text-muted-foreground mt-1">{t.assignedCaregivers}</p>
           </div>
-          
+
           {/* Search */}
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -139,15 +111,15 @@ export default function Caregivers() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Card variant="elevated" className="text-center p-3 sm:p-4">
-            <div className="text-2xl sm:text-3xl font-bold text-primary">{mockCaregivers.length}</div>
+          <Card className="text-center p-3 sm:p-4">
+            <div className="text-2xl sm:text-3xl font-bold text-primary">{realCaregivers.length}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Total Caregivers</p>
           </Card>
-          <Card variant="elevated" className="text-center p-3 sm:p-4">
-            <div className="text-2xl sm:text-3xl font-bold text-success">{mockCaregivers.filter(c => c.isOnline).length}</div>
+          <Card className="text-center p-3 sm:p-4">
+            <div className="text-2xl sm:text-3xl font-bold text-success">{realCaregivers.filter(c => c.isOnline).length}</div>
             <p className="text-xs sm:text-sm text-muted-foreground">{t.online}</p>
           </Card>
-          <Card variant="elevated" className="text-center p-3 sm:p-4">
+          <Card className="text-center p-3 sm:p-4">
             <div className="text-2xl sm:text-3xl font-bold text-secondary">4.8</div>
             <p className="text-xs sm:text-sm text-muted-foreground">Avg Rating</p>
           </Card>
@@ -156,7 +128,7 @@ export default function Caregivers() {
         {/* Caregivers List */}
         <div className="space-y-4">
           {filteredCaregivers.length === 0 ? (
-            <Card variant="elevated" className="p-8 text-center">
+            <Card className="p-8 text-center">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">{t.noCaregivers}</h3>
               <p className="text-muted-foreground">
@@ -167,7 +139,6 @@ export default function Caregivers() {
             filteredCaregivers.map((caregiver) => (
               <Card
                 key={caregiver.id}
-                variant="elevated"
                 className="overflow-hidden transition-all hover:shadow-lg"
               >
                 <CardContent className="p-4 sm:p-6">
@@ -182,12 +153,11 @@ export default function Caregivers() {
                           </AvatarFallback>
                         </Avatar>
                         <div
-                          className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-background ${
-                            caregiver.isOnline ? 'bg-success' : 'bg-muted-foreground'
-                          }`}
+                          className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-background ${caregiver.isOnline ? 'bg-success' : 'bg-muted-foreground'
+                            }`}
                         />
                       </div>
-                      
+
                       {/* Mobile: Basic Info next to avatar */}
                       <div className="flex-1 sm:hidden">
                         <h3 className="text-lg font-semibold">{caregiver.name}</h3>
@@ -293,7 +263,7 @@ export default function Caregivers() {
         </div>
 
         {/* Emergency Contact Card */}
-        <Card variant="elevated" className="border-danger/20 bg-danger/5">
+        <Card className="border-danger/20 bg-danger/5">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center">
@@ -312,6 +282,15 @@ export default function Caregivers() {
             </div>
           </CardContent>
         </Card>
+
+        {openChatId && (
+          <ChatInterface
+            recipientId={openChatId}
+            onClose={() => setOpenChatId(null)}
+          />
+        )}
+
+        {activeCall && <VideoCallInterface />}
       </div>
     </ElderLayout>
   );

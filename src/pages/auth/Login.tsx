@@ -83,9 +83,7 @@ export default function Login() {
         <div className="w-full max-w-md animate-fade-in">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-4">
-              <Bot className="w-8 h-8 text-primary-foreground" />
-            </div>
+            <img src="/logo.png" alt="Aayu AI" className="w-16 h-16 rounded-2xl object-cover mx-auto mb-4" />
             <h1 className="text-2xl font-bold">Welcome to Aayu AI</h1>
             <p className="text-muted-foreground">Sign in to continue your health journey</p>
           </div>

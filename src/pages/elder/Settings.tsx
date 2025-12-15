@@ -18,7 +18,9 @@ import {
   Volume2,
   Accessibility,
   Mic,
+  User,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 import { languages } from '@/lib/translations';
@@ -30,7 +32,7 @@ const textSizeOptions = [
 ];
 
 export default function Settings() {
-  const { settings, updateSettings } = useApp();
+  const { settings, updateSettings, user, updateUser } = useApp();
   const { toast } = useToast();
   const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
 
@@ -59,6 +61,37 @@ export default function Settings() {
     });
   };
 
+  // Profile Edit State
+  const [profileData, setProfileData] = React.useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    email: user?.email || '',
+    age: user?.age?.toString() || '',
+    gender: user?.gender || 'male'
+  });
+
+  React.useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name,
+        phone: user.phone || '',
+        email: user.email,
+        age: user.age?.toString() || '',
+        gender: user.gender || 'male',
+      });
+    }
+  }, [user]);
+
+  const handleSaveProfile = () => {
+    updateUser({
+      name: profileData.name,
+      phone: profileData.phone,
+      email: profileData.email,
+      age: parseInt(profileData.age) || 0,
+      gender: profileData.gender as any
+    });
+  };
+
   return (
     <ElderLayout>
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
@@ -70,12 +103,12 @@ export default function Settings() {
           <p className="text-muted-foreground mt-1">Customize your Aayu AI experience</p>
         </div>
 
-        {/* Accessibility Settings */}
+        {/* Profile Settings */}
         <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Accessibility className="w-5 h-5 text-primary" />
-              Accessibility
+              <User className="w-5 h-5 text-primary" />
+              Profile Information
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">

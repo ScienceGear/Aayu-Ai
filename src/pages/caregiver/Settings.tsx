@@ -5,14 +5,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Globe, Bell, Palette, Sun, Moon } from 'lucide-react';
+import { Globe, Bell, Palette, Sun, Moon, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { languages } from '@/lib/translations';
 
 export default function CaregiverSettings() {
-    const { settings, updateSettings } = useApp();
+    const { settings, updateSettings, user, updateUser } = useApp();
     const { toast } = useToast();
+
+    // Profile State
+    const [profileData, setProfileData] = React.useState({
+        name: user?.name || '',
+        phone: user?.phone || '',
+        email: user?.email || '',
+    });
+
+    React.useEffect(() => {
+        if (user) {
+            setProfileData({
+                name: user.name,
+                phone: user.phone || '',
+                email: user.email,
+            });
+        }
+    }, [user]);
+
+    const handleSaveProfile = () => {
+        updateUser({
+            name: profileData.name,
+            phone: profileData.phone,
+        });
+    };
 
     const handleLanguageChange = (value: Language) => {
         updateSettings({ language: value });
@@ -29,6 +54,28 @@ export default function CaregiverSettings() {
         <CaregiverLayout>
             <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
                 <h1 className="text-3xl font-bold">Settings</h1>
+
+                {/* Profile Settings */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><User className="w-5 h-5" /> Profile</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Full Name</Label>
+                            <Input value={profileData.name} onChange={e => setProfileData({ ...profileData, name: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Email</Label>
+                            <Input value={profileData.email} disabled className="bg-muted" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Phone Number</Label>
+                            <Input value={profileData.phone} onChange={e => setProfileData({ ...profileData, phone: e.target.value })} />
+                        </div>
+                        <Button onClick={handleSaveProfile}>Save Profile</Button>
+                    </CardContent>
+                </Card>
 
                 <Card>
                     <CardHeader>
