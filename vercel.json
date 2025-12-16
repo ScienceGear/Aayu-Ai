@@ -1,7 +1,27 @@
 {
-  "buildCommand": "bun run build",
-  "outputDirectory": "dist",
+  "version": 2,
+  "builds": [
+    {
+      "src": "server/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/server/index.js"
+    },
+    {
+      "source": "/socket.io/(.*)",
+      "destination": "/server/index.js"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
