@@ -35,8 +35,22 @@ cd Aayu-Ai
 bun install
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
-bun run dev
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
+bun run dev --host --port 8080
 ```
+
+## Running Locally (Single Port Mode)
+
+To run the application on a single port (localhost:3000), simulating a production environment:
+
+1. Double-click `start-app.bat` (Windows)
+   OR run:
+   ```sh
+   npm start
+   ```
+   This will build the frontend and start the server at [http://localhost:3000](http://localhost:3000).
+
 
 ## What technologies are used for this project?
 
