@@ -28,9 +28,26 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Database Connection
+if (!process.env.MONGODB_URI) {
+    console.error('❌ MONGODB_URI is not set!');
+    process.exit(1);
+}
+
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch((err) => {
+        console.error('❌ MongoDB connection error:', err);
+        process.exit(1);
+    });
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        env: process.env.NODE_ENV 
+    });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
