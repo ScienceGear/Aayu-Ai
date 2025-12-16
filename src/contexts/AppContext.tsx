@@ -3,8 +3,8 @@ import { useToast } from '@/hooks/use-toast';
 import { io, Socket } from 'socket.io-client';
 
 const getBaseUrl = () => {
-  // Relative URL for single-port deployment
-  return '';
+  // Use environment variable for API URL, fallback to relative URL for production
+  return import.meta.env.VITE_API_URL || '';
 };
 
 const BASE_URL = getBaseUrl();
