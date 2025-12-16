@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "bun@1.3.4",
+
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client\"",
-    "start": "npm run build && node server/index.js",
+    "start": "node server/index.js",
     "dev:single-port": "vite",
     "client": "vite",
     "server": "node server/index.js",

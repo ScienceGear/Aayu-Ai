@@ -173,11 +173,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Connect Socket with better configuration
     console.log('🔌 Connecting to Socket.IO server at:', BASE_URL);
+
+    // Railway supports WebSockets natively, so we prioritize 'websocket'
     socketRef.current = io(BASE_URL, {
-      transports: ['websocket', 'polling'],
+      path: '/socket.io',
+      transports: ['websocket', 'polling'], // Prioritize websocket
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
+      timeout: 20000,
+      autoConnect: true,
     });
 
     socketRef.current.on('connect', () => {

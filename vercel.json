@@ -19,7 +19,7 @@
       "destination": "/server/index.js"
     },
     {
-      "source": "/socket.io/(.*)",
+      "source": "/socket.io(.*)",
       "destination": "/server/index.js"
     },
     {
