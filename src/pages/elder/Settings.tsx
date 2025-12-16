@@ -167,11 +167,8 @@ export default function Settings() {
       formData.append('file', file);
 
       try {
-        // Determine API URL dynamically
-        const hostname = window.location.hostname;
-        const baseUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
-          ? 'http://localhost:5000'
-          : `http://${hostname}:5000`;
+        // Use relative URL (handled by proxy in dev, and static serve in prod)
+        const baseUrl = '';
 
         const res = await fetch(`${baseUrl}/api/upload`, {
           method: 'POST',

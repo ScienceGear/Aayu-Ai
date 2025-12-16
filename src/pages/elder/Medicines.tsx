@@ -32,11 +32,8 @@ const uploadImage = async (file: File): Promise<string | null> => {
   const formData = new FormData();
   formData.append('file', file);
 
-  // Determine API URL dynamically
-  const hostname = window.location.hostname;
-  const baseUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
-    ? 'http://localhost:5000'
-    : `http://${hostname}:5000`;
+  // Use relative URL
+  const baseUrl = '';
 
   try {
     const res = await fetch(`${baseUrl}/api/upload`, {

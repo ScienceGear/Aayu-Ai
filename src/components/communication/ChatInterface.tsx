@@ -48,7 +48,7 @@ export function ChatInterface({ recipientId, onClose }: ChatInterfaceProps) {
         formData.append('file', file);
 
         try {
-            const res = await fetch('http://localhost:5000/api/upload', {
+            const res = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData,
             });
@@ -64,7 +64,7 @@ export function ChatInterface({ recipientId, onClose }: ChatInterfaceProps) {
                 // Ideally AppContext should be updated. For this task, let's append a marker or just URL.
                 // Actually, let's assume we can modify sendMessage/socket to handle 'type'.
                 // But simply, let's send just the URL and detect it in rendering.
-                const fullUrl = `http://localhost:5000${data.url}`;
+                const fullUrl = `${data.url}`;
                 sendMessage(recipientId, fullUrl); // We'll detect 'http' and 'uploads' to render as image
             }
         } catch (error) {

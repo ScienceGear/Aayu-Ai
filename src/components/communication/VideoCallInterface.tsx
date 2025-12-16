@@ -6,11 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { io } from 'socket.io-client';
 
 const getBaseUrl = () => {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return 'http://localhost:5000';
-    }
-    return `http://${hostname}:5000`;
+    return '';
 };
 
 export function VideoCallInterface() {

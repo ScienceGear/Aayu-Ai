@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -37,6 +38,14 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/care', careRoutes);
 app.use('/api/upload', uploadRoutes);
+
+// Serve Static Files from Frontend
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Handle React Routing, return all requests to React app
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+});
 
 // Socket.io Logic
 const User = require('./models/User'); // Import User model for status updates
@@ -117,7 +126,7 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

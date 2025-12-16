@@ -3,13 +3,8 @@ import { useToast } from '@/hooks/use-toast';
 import { io, Socket } from 'socket.io-client';
 
 const getBaseUrl = () => {
-  const hostname = window.location.hostname;
-  // If running completely locally
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:5000';
-  }
-  // If running on network (e.g. 192.168.x.x)
-  return `http://${hostname}:5000`;
+  // Relative URL for single-port deployment
+  return '';
 };
 
 const BASE_URL = getBaseUrl();

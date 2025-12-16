@@ -36,6 +36,33 @@ function getMockResponse(prompt: string, context?: string): string {
         return response + "\n Would you like me to remind you to refill any of these?";
     }
 
+    // Check for Exercise Plan request (JSON)
+    if (lowerPrompt.includes('exercise plan') && lowerPrompt.includes('json')) {
+        return JSON.stringify([
+            {
+                name: "Chair Marching",
+                duration: "5 min",
+                calories: 20,
+                difficulty: "easy",
+                instructions: "Sit straight and march legs up and down."
+            },
+            {
+                name: "Wall Push-ups",
+                duration: "10 min",
+                calories: 40,
+                difficulty: "medium",
+                instructions: "Stand against wall and push with arms."
+            },
+            {
+                name: "Ankle Rotations",
+                duration: "5 min",
+                calories: 15,
+                difficulty: "easy",
+                instructions: "Rotate ankles clockwise and anti-clockwise."
+            }
+        ]);
+    }
+
     if (lowerPrompt.includes('activit') || lowerPrompt.includes('task') || lowerPrompt.includes('miss')) {
         if (activities.length === 0) {
             return "You don't have any activities scheduled for today. Would you like me to help you plan your day?";
@@ -75,8 +102,9 @@ export async function getGeminiResponse(prompt: string, context?: string) {
     }
 
     try {
-        console.log("🚀 Attempting Gemini API call with model: gemini-1.5-flash");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        console.log("🚀 Attempting Gemini API call with model: gemini-pro");
+        // Using gemini-pro for better v1 compatibility if flash is unavailable
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
         let fullPrompt = "You are Aayu, a caring and helpful AI health assistant for an elderly person. Keep responses concise, warm, and supportive.";
 
@@ -153,6 +181,7 @@ export async function analyzeMedicineImage(file: File) {
 
     try {
         console.log("🚀 Analyzing image with Gemini...");
+        // Valid vision models: gemini-1.5-flash, gemini-pro-vision (deprecated but works), gemini-1.5-pro
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const imagePart = await fileToGenerativePart(file);
