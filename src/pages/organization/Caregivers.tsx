@@ -64,7 +64,7 @@ export default function OrganizationCaregivers() {
         // Let's assume updateUser handles it or I call API directly.
         // AppContext updateUser saves to localStorage. I added API call in previous steps to AppContext updateUser? 
         // No, I added it to a specific spot. Let's do API call here to be safe.
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const API_URL = import.meta.env.VITE_API_URL || '/api';
         try {
             await fetch(`${API_URL}/users/${id}`, {
                 method: 'PUT',
@@ -101,7 +101,7 @@ export default function OrganizationCaregivers() {
 
     const handleAssignCaregiver = async () => {
         if (!selectedCaregiverId) return;
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const API_URL = import.meta.env.VITE_API_URL || '/api';
         let count = 0;
 
         for (const id of selectedElderIds) {

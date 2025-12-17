@@ -16,7 +16,7 @@ export default function OrganizationDashboard() {
 
     const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
     const [pendingReports, setPendingReports] = useState<any[]>([]);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = import.meta.env.VITE_API_URL || '/api';
 
     useEffect(() => {
         const fetchData = async () => {

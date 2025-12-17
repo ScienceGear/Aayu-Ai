@@ -17,7 +17,7 @@ interface SOSAlert {
 export default function OrganizationAlerts() {
     const { socketRef } = useApp();
     const [alerts, setAlerts] = useState<SOSAlert[]>([]);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const API_URL = import.meta.env.VITE_API_URL || '/api';
 
     useEffect(() => {
         const fetchAlerts = async () => {

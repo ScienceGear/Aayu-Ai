@@ -3,16 +3,8 @@ import { useToast } from '@/hooks/use-toast';
 import { io, Socket } from 'socket.io-client';
 
 const getBaseUrl = () => {
-  // Use environment variable for API URL, fallback to current domain for production
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  // In production, use the same domain as the frontend
-  if (window.location.hostname !== 'localhost') {
-    return window.location.origin;
-  }
-  // Development fallback
-  return 'http://localhost:3000';
+  // Use environment variable for API URL, or empty string for same-origin requests
+  return import.meta.env.VITE_API_URL || '';
 };
 
 const BASE_URL = getBaseUrl();

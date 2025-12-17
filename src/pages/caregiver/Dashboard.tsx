@@ -27,7 +27,7 @@ export default function CaregiverDashboard() {
     // 3. Fetch Real Alerts
     useEffect(() => {
         const fetchAlerts = async () => {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+            const API_URL = import.meta.env.VITE_API_URL || '/api';
             try {
                 const res = await fetch(`${API_URL}/care/alerts`);
                 if (res.ok) {
