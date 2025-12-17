@@ -50,7 +50,7 @@ const uploadImage = async (file: File): Promise<string | null> => {
 };
 
 export default function Medicines() {
-  const { user, medicines, addMedicine, removeMedicine, toggleMedicine } = useApp();
+  const { user, medicines, addMedicine, removeMedicine, toggleMedicine, updateMedicine } = useApp();
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -83,6 +83,7 @@ export default function Medicines() {
         setNewMedicine(prev => ({ ...prev, image: url }));
         // If in edit mode, update editing medicine too
         if (editingMedicine) {
+          // @ts-ignore
           setEditingMedicine(prev => prev ? ({ ...prev, image: url }) : null);
         }
       } else {
@@ -137,21 +138,12 @@ export default function Medicines() {
 
   const saveEdit = async () => {
     if (!editingMedicine) return;
-    // In a real app we would call updateMedicine(editingMedicine)
-    // Since context might not have updateMedicine, we might hack it:
-    // remove then add (bad practice but works for simple lists without complex backend relations)
-    // OR better, we need to add updateMedicine to context. 
-    // For now, I'll simulate it by removing and re-adding if no update function exists.
-    // Wait, let's assume valid Context usage or just use remove/add for now to be safe with existing context.
 
-    removeMedicine(editingMedicine.id);
-    await addMedicine(editingMedicine); // This assigns a new ID though... 
-    // Ideally we need an updateMedicine function in AppContext. 
-    // But given constraints, let's just do that for now OR check if `updateUser` can be abused? No.
+    // Use the proper update function
+    await updateMedicine(editingMedicine.id, editingMedicine);
 
     setIsEditOpen(false);
     setEditingMedicine(null);
-    toast({ title: "Medicine Updated", description: "Changes saved successfully." });
   };
 
   const handleUploadPrescription = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -21,7 +21,7 @@ import {
   Accessibility,
   Bike,
   Loader2
-} from 'lucide-react'; // Added more icons
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -41,8 +41,10 @@ export default function Exercise() {
     duration: '',
     calories: '',
     difficulty: 'easy',
-    instructions: ''
+    instructions: '',
+    videoLink: ''
   });
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   // Filter exercises for current user
   const myExercises = exercises.filter(e => e.userId === user?.id);
@@ -84,6 +86,7 @@ export default function Exercise() {
         - calories (number)
         - difficulty (string: "easy", "medium", "hard")
         - instructions (string, short description)
+        - videoLink (string, optional valid public youtube link if known, otherwise empty)
         Do not include markdown formatting.
     `;
 
@@ -104,6 +107,7 @@ export default function Exercise() {
             calories: ex.calories,
             difficulty: ex.difficulty,
             instructions: ex.instructions,
+            videoLink: ex.videoLink,
             completed: false,
             date: new Date().toISOString()
           });
@@ -130,11 +134,12 @@ export default function Exercise() {
       calories: parseInt(newExercise.calories) || 0,
       difficulty: newExercise.difficulty as any,
       instructions: newExercise.instructions,
+      videoLink: newExercise.videoLink,
       completed: false,
       date: new Date().toISOString()
     });
     setIsAddOpen(false);
-    setNewExercise({ name: '', duration: '', calories: '', difficulty: 'easy', instructions: '' });
+    setNewExercise({ name: '', duration: '', calories: '', difficulty: 'easy', instructions: '', videoLink: '' });
   };
 
   const startExercise = (id: string) => {
@@ -183,7 +188,6 @@ export default function Exercise() {
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                {/* ... existing dialog content ... */}
                 <DialogHeader>
                   <DialogTitle>Add Custom Exercise</DialogTitle>
                 </DialogHeader>
@@ -216,6 +220,10 @@ export default function Exercise() {
                   <div className="space-y-2">
                     <Label>Instructions</Label>
                     <Input value={newExercise.instructions} onChange={e => setNewExercise({ ...newExercise, instructions: e.target.value })} placeholder="Short description..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>YouTube Link (Optional)</Label>
+                    <Input value={newExercise.videoLink} onChange={e => setNewExercise({ ...newExercise, videoLink: e.target.value })} placeholder="e.g. https://youtube.com/..." />
                   </div>
                 </div>
                 <DialogFooter>
@@ -336,20 +344,40 @@ export default function Exercise() {
                         )}
                       </div>
 
-                      {!exercise.completed && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => startExercise(exercise.id)}
-                          className="shrink-0 w-8 h-8"
-                        >
-                          {activeExercise === exercise.id && isPlaying ? (
-                            <Pause className="w-4 h-4" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {exercise.videoLink && !exercise.completed && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              let embedUrl = exercise.videoLink || '';
+                              if (embedUrl.includes('watch?v=')) {
+                                embedUrl = embedUrl.replace('watch?v=', 'embed/');
+                              } else if (embedUrl.includes('youtu.be/')) {
+                                embedUrl = embedUrl.replace('youtu.be/', 'www.youtube.com/embed/');
+                              }
+                              setPlayingVideo(embedUrl);
+                            }}
+                            className="shrink-0 w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Play className="w-4 h-4" fill="currentColor" />
+                          </Button>
+                        )}
+                        {!exercise.completed && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => startExercise(exercise.id)}
+                            className="shrink-0 w-8 h-8"
+                          >
+                            {activeExercise === exercise.id && isPlaying ? (
+                              <Pause className="w-4 h-4" />
+                            ) : (
+                              <Clock className="w-4 h-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   );
                 })
@@ -383,6 +411,23 @@ export default function Exercise() {
             </Card>
           </div>
         </div>
+
+        {/* Video Player Dialog */}
+        <Dialog open={!!playingVideo} onOpenChange={(open) => !open && setPlayingVideo(null)}>
+          <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden bg-black border-none">
+            <div className="aspect-video w-full relative">
+              {playingVideo && (
+                <iframe
+                  src={playingVideo}
+                  title="Exercise Video"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </ElderLayout>
   );

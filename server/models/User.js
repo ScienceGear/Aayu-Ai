@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema({
         phone: String,
         relation: String
     }],
+    assignedCaregiverId: { type: String },
+    status: { type: String, enum: ['active', 'pending'], default: 'active' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -4,49 +4,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { FileText, Plus, Calendar, Check, CheckCheck } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useApp } from '@/contexts/AppContext';
 
 const mockReports = [
-    { id: 1, type: 'Weekly Summary', date: '2024-12-10', status: 'Normal', doctor: 'Dr. Sharma' },
-    { id: 2, type: 'Blood Test', date: '2024-12-01', status: 'Attention Needed', doctor: 'Dr. Gupta' },
+    { id: '1', type: 'Weekly Summary', date: '2024-12-10', status: 'Normal', doctor: 'Dr. Sharma' },
+    { id: '2', type: 'Blood Test', date: '2024-12-01', status: 'Attention Needed', doctor: 'Dr. Gupta' },
 ];
 
 export default function ElderReports() {
-    const { toast } = useToast();
+    const { user, addReport, reports } = useApp();
     const [painLevel, setPainLevel] = useState([0]);
     const [reportText, setReportText] = useState('');
     const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
-    const [sentReports, setSentReports] = useState<{ id: string, issue: string, date: string, status: 'sent' | 'delivered' | 'seen' }[]>([]);
 
     const handleSubmitReport = () => {
         if (!selectedIssue && !reportText) return;
 
-        const newReport = {
+        addReport({
             id: Date.now().toString(),
+            userId: user?.id || 'unknown',
             issue: selectedIssue || 'General Checkup',
-            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: 'sent' as const
-        };
-
-        setSentReports(prev => [newReport, ...prev]);
-
-        toast({
-            title: "Report Sent",
-            description: "Your caregiver has been notified about your condition.",
+            painLevel: painLevel[0],
+            description: reportText,
+            date: new Date().toLocaleString(),
+            status: 'sent',
         });
-
-        // Simulate delivery and seen text
-        setTimeout(() => {
-            setSentReports(prev => prev.map(r => r.id === newReport.id ? { ...r, status: 'delivered' } : r));
-        }, 2000);
-
-        setTimeout(() => {
-            setSentReports(prev => prev.map(r => r.id === newReport.id ? { ...r, status: 'seen' } : r));
-            toast({
-                title: "Report Seen",
-                description: "Your caregiver has viewed your report.",
-            });
-        }, 5000);
 
         setReportText('');
         setPainLevel([0]);
@@ -54,6 +36,7 @@ export default function ElderReports() {
     };
 
     const issues = ['Sleeplessness', 'Joint Pain', 'Dizziness', 'Stomach Ache', 'Headache'];
+    const myReports = reports.filter(r => r.userId === user?.id);
 
     return (
         <ElderLayout>
@@ -120,7 +103,7 @@ export default function ElderReports() {
                 </Card>
 
                 {/* Sent Reports Status */}
-                {sentReports.length > 0 && (
+                {myReports.length > 0 && (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -130,7 +113,7 @@ export default function ElderReports() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
-                                {sentReports.map(report => (
+                                {myReports.map(report => (
                                     <div key={report.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
                                         <div>
                                             <h4 className="font-semibold">{report.issue}</h4>
@@ -148,7 +131,7 @@ export default function ElderReports() {
                     </Card>
                 )}
 
-                {/* Previous Reports */}
+                {/* Previous Reports - MOCKED for now */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -184,3 +167,4 @@ export default function ElderReports() {
         </ElderLayout>
     );
 }
+

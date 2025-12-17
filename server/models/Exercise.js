@@ -11,6 +11,7 @@ const exerciseSchema = new mongoose.Schema({
     instructions: { type: String },
     difficulty: { type: String, enum: ['easy', 'medium', 'hard'], default: 'easy' },
     date: { type: Date, default: Date.now },
+    videoLink: { type: String },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Exercise', exerciseSchema);

@@ -1,336 +1,148 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CaregiverLayout } from '@/components/layout/CaregiverLayout';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import {
-    Users,
-    AlertTriangle,
-    Pill,
-    Dumbbell,
-    Plus,
-    Video,
-    Phone,
-    Trash2,
-    Calendar
-} from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, FileText, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function CaregiverDashboard() {
-    const { user, users, exercises, medicines, activities, addExercise, addMedicine, addActivity, removeExercise, removeMedicine, removeActivity } = useApp();
-    const [selectedElderId, setSelectedElderId] = useState<string | null>(null);
+    const { user, users, reports } = useApp();
+    const navigate = useNavigate();
 
-    // Dialog States
-    const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false);
-    const [newExercise, setNewExercise] = useState({
-        name: '', duration: '', calories: '', difficulty: 'easy', instructions: ''
-    });
+    // State for real data fetching
+    const [alertCount, setAlertCount] = useState(0);
+    const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
 
-    const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
-    const [newMedicine, setNewMedicine] = useState({
-        name: '', dosage: '', time: '', stock: ''
-    });
+    // 1. Filter Assigned Elders
+    // Only show elders where assignedCaregiverId matches current user ID
+    const myElders = users.filter(u => u.role === 'elder' && u.assignedCaregiverId === user?.id);
+    const myElderIds = myElders.map(u => u.id);
 
-    const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
-    const [newActivity, setNewActivity] = useState({
-        title: '', time: ''
-    });
+    // 2. Filter Reports (Assuming report.userId matches elderId)
+    // Filter reports to only show those belonging to my assigned elders
+    const myReports = reports.filter(r => myElderIds.includes(r.userId));
+    const newReportsCount = myReports.filter(r => r.status === 'sent' || r.status === 'pending').length;
 
-    // Assume all elders are "assigned" for demo purposes, or filter if we had assignment logic
-    const assignedElders = users.filter(u => u.role === 'elder');
-    const selectedElder = assignedElders.find(u => u.id === selectedElderId);
-
-    // Filtered Data for Selected Elder
-    const elderExercises = exercises.filter(e => e.userId === selectedElderId);
-    const elderMedicines = medicines.filter(m => m.userId === selectedElderId);
-    const elderActivities = activities.filter(a => a.userId === selectedElderId);
-
-    const handleAddActivity = () => {
-        if (!selectedElderId || !newActivity.title) return;
-        addActivity({
-            id: crypto.randomUUID(),
-            userId: selectedElderId,
-            title: newActivity.title,
-            completed: false,
-            dueTime: newActivity.time || '12:00 PM',
-            priority: 'medium'
-        });
-        setIsAddActivityOpen(false);
-        setNewActivity({ title: '', time: '' });
-    };
-
-    const handleAddExercise = () => {
-        if (!selectedElderId || !newExercise.name) return;
-        addExercise({
-            id: crypto.randomUUID(),
-            userId: selectedElderId,
-            assignedBy: user?.id || 'caregiver',
-            name: newExercise.name,
-            duration: newExercise.duration,
-            calories: parseInt(newExercise.calories) || 0,
-            difficulty: newExercise.difficulty as any,
-            instructions: newExercise.instructions,
-            completed: false,
-            date: new Date().toISOString()
-        });
-        setIsAddExerciseOpen(false);
-        setNewExercise({ name: '', duration: '', calories: '', difficulty: 'easy', instructions: '' });
-    };
-
-    const handleAddMedicine = () => {
-        if (!selectedElderId || !newMedicine.name) return;
-        addMedicine({
-            id: crypto.randomUUID(),
-            userId: selectedElderId,
-            assignedBy: user?.id || 'caregiver',
-            name: newMedicine.name,
-            dosage: newMedicine.dosage,
-            time: newMedicine.time,
-            stock: parseInt(newMedicine.stock) || 0,
-            taken: false,
-        });
-        setIsAddMedicineOpen(false);
-        setNewMedicine({ name: '', dosage: '', time: '', stock: '' });
-    };
+    // 3. Fetch Real Alerts
+    useEffect(() => {
+        const fetchAlerts = async () => {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+            try {
+                const res = await fetch(`${API_URL}/care/alerts`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Filter alerts for my elders
+                    const myActiveAlerts = data.filter((a: any) => myElderIds.includes(a.elderId) && a.status === 'active');
+                    setAlertCount(myActiveAlerts.length);
+                    setRecentAlerts(myActiveAlerts.slice(0, 3));
+                }
+            } catch (e) { console.error(e); }
+        };
+        if (user?.id) fetchAlerts();
+    }, [user?.id, users]); // Trigger when user or user list (assignments) changes
 
     return (
         <CaregiverLayout>
             <div className="space-y-6 animate-fade-in">
+                {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold">Caregiver Dashboard</h1>
-                        <p className="text-muted-foreground mt-1">Manage health plans for your assigned elders.</p>
+                        <h1 className="text-3xl font-bold">Dashboard</h1>
+                        <p className="text-muted-foreground mt-1">Overview of your assigned elders and their health status.</p>
                     </div>
                 </div>
 
-                {/* Elder Selection / List */}
-                {!selectedElderId ? (
-                    <div className="space-y-4">
-                        <h2 className="text-xl font-semibold flex items-center gap-2">
-                            <Users className="w-5 h-5" /> Assigned Elders
-                        </h2>
-
-                        {assignedElders.length === 0 ? (
-                            <Card><CardContent className="p-8 text-center text-muted-foreground">No elders found. Contact admin to add users.</CardContent></Card>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {assignedElders.map(elder => (
-                                    <Card key={elder.id} className="card-hover cursor-pointer" onClick={() => setSelectedElderId(elder.id)}>
-                                        <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-                                            <Avatar className="w-20 h-20">
-                                                <AvatarImage src={elder.profilePic} />
-                                                <AvatarFallback>{elder.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <h3 className="font-bold text-lg">{elder.name}</h3>
-                                                <p className="text-sm text-muted-foreground">{elder.age} years • {elder.gender}</p>
-                                            </div>
-                                            <Button variant="outline" className="w-full mt-2">Manage Care Plan</Button>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    // Detailed View for Selected Elder
-                    <div className="space-y-6">
-                        <Button variant="ghost" onClick={() => setSelectedElderId(null)} className="mb-2">← Back to All Elders</Button>
-
-                        {/* Elder Profile Header */}
-                        <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-xl border border-border">
-                            <Avatar className="w-16 h-16">
-                                <AvatarImage src={selectedElder?.profilePic} />
-                                <AvatarFallback>{selectedElder?.name[0]}</AvatarFallback>
-                            </Avatar>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card onClick={() => navigate('/caregiver/elders')} className="cursor-pointer hover:border-primary/50 transition-colors">
+                        <CardContent className="p-6 flex items-center justify-between">
                             <div>
-                                <h2 className="text-2xl font-bold">{selectedElder?.name}</h2>
-                                <p className="text-muted-foreground">{selectedElder?.email} • {selectedElder?.phone || 'No phone'}</p>
+                                <p className="text-sm font-medium text-muted-foreground">Assigned Elders</p>
+                                <h3 className="text-3xl font-bold mt-2">{myElders.length}</h3>
                             </div>
-                            <div className="ml-auto flex gap-2">
-                                <Button size="sm" variant="outline"><Phone className="w-4 h-4 mr-2" /> Call</Button>
-                                <Button size="sm" variant="outline"><Video className="w-4 h-4 mr-2" /> Video</Button>
+                            <div className="p-3 bg-blue-100 rounded-full text-blue-600">
+                                <Users className="w-6 h-6" />
                             </div>
-                        </div>
+                        </CardContent>
+                    </Card>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Medicine Management */}
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Pill className="w-5 h-5 text-blue-500" /> Medicines
-                                    </CardTitle>
-                                    <Dialog open={isAddMedicineOpen} onOpenChange={setIsAddMedicineOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Med</Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader><DialogTitle>Add Medicine</DialogTitle></DialogHeader>
-                                            <div className="space-y-4 py-4">
-                                                <div className="space-y-2">
-                                                    <Label>Medicine Name</Label>
-                                                    <Input value={newMedicine.name} onChange={e => setNewMedicine({ ...newMedicine, name: e.target.value })} placeholder="e.g. Asprin" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Dosage</Label>
-                                                    <Input value={newMedicine.dosage} onChange={e => setNewMedicine({ ...newMedicine, dosage: e.target.value })} placeholder="e.g. 1 tablet" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Time</Label>
-                                                    <Input value={newMedicine.time} onChange={e => setNewMedicine({ ...newMedicine, time: e.target.value })} placeholder="e.g. 8:00 AM" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Stock</Label>
-                                                    <Input type="number" value={newMedicine.stock} onChange={e => setNewMedicine({ ...newMedicine, stock: e.target.value })} placeholder="e.g. 30" />
-                                                </div>
-                                            </div>
-                                            <DialogFooter><Button onClick={handleAddMedicine}>Add Medicine</Button></DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </CardHeader>
-                                <CardContent>
-                                    {elderMedicines.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm text-center py-4">No medicines assigned.</p>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {elderMedicines.map(med => (
-                                                <div key={med.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg">
-                                                    <div>
-                                                        <p className="font-medium">{med.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{med.dosage} at {med.time}</p>
-                                                    </div>
-                                                    <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeMedicine(med.id)}>
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                    <Card onClick={() => navigate('/caregiver/reports')} className="cursor-pointer hover:border-primary/50 transition-colors">
+                        <CardContent className="p-6 flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">New Reports</p>
+                                <h3 className="text-3xl font-bold mt-2 text-orange-600">{newReportsCount}</h3>
+                            </div>
+                            <div className="p-3 bg-orange-100 rounded-full text-orange-600">
+                                <FileText className="w-6 h-6" />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                            {/* Exercise Management */}
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Dumbbell className="w-5 h-5 text-green-500" /> Exercise Plan
-                                    </CardTitle>
-                                    <Dialog open={isAddExerciseOpen} onOpenChange={setIsAddExerciseOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Exercise</Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader><DialogTitle>Add Exercise</DialogTitle></DialogHeader>
-                                            <div className="space-y-4 py-4">
-                                                <div className="space-y-2">
-                                                    <Label>Exercise Name</Label>
-                                                    <Input value={newExercise.name} onChange={e => setNewExercise({ ...newExercise, name: e.target.value })} placeholder="e.g. Walking" />
-                                                </div>
-                                                <div className="flex gap-4">
-                                                    <div className="space-y-2 flex-1">
-                                                        <Label>Duration</Label>
-                                                        <Input value={newExercise.duration} onChange={e => setNewExercise({ ...newExercise, duration: e.target.value })} placeholder="e.g. 15 mins" />
-                                                    </div>
-                                                    <div className="space-y-2 flex-1">
-                                                        <Label>Calories</Label>
-                                                        <Input type="number" value={newExercise.calories} onChange={e => setNewExercise({ ...newExercise, calories: e.target.value })} placeholder="e.g. 50" />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Difficulty</Label>
-                                                    <Select value={newExercise.difficulty} onValueChange={v => setNewExercise({ ...newExercise, difficulty: v })}>
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="easy">Easy</SelectItem>
-                                                            <SelectItem value="medium">Medium</SelectItem>
-                                                            <SelectItem value="hard">Hard</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                            <DialogFooter><Button onClick={handleAddExercise}>Add Exercise</Button></DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </CardHeader>
-                                <CardContent>
-                                    {elderExercises.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm text-center py-4">No exercises assigned.</p>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {elderExercises.map(ex => (
-                                                <div key={ex.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg">
-                                                    <div>
-                                                        <p className="font-medium">{ex.name}</p>
-                                                        <div className="flex gap-2 text-xs text-muted-foreground">
-                                                            <span>{ex.duration}</span>
-                                                            <span>•</span>
-                                                            <span className="capitalize">{ex.difficulty}</span>
-                                                        </div>
-                                                    </div>
-                                                    <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeExercise(ex.id)}>
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            ))}
+                    <Card onClick={() => navigate('/caregiver/sos')} className="cursor-pointer hover:border-primary/50 transition-colors">
+                        <CardContent className="p-6 flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
+                                <h3 className="text-3xl font-bold mt-2 text-red-600">{alertCount}</h3>
+                            </div>
+                            <div className="p-3 bg-red-100 rounded-full text-red-600">
+                                <AlertTriangle className="w-6 h-6" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Recent Reports Preview */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle className="text-lg">Recent Reports</CardTitle>
+                            <Button variant="ghost" size="sm" onClick={() => navigate('/caregiver/reports')}>View All <ArrowRight className="w-4 h-4 ml-1" /></Button>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {myReports.slice(0, 3).map(report => (
+                                    <div key={report.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                                        <div>
+                                            <p className="font-medium">{report.issue}</p>
+                                            <p className="text-xs text-muted-foreground">{report.date}</p>
                                         </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                            {/* Activity Management */}
-                            <Card className="lg:col-span-2">
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <CardTitle className="flex items-center gap-2">
-                                        <AlertTriangle className="w-5 h-5 text-purple-500" /> Daily Activities & Tasks
-                                    </CardTitle>
-                                    <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader><DialogTitle>Add Activity</DialogTitle></DialogHeader>
-                                            <div className="space-y-4 py-4">
-                                                <div className="space-y-2">
-                                                    <Label>Activity Title</Label>
-                                                    <Input value={newActivity.title} onChange={e => setNewActivity({ ...newActivity, title: e.target.value })} placeholder="e.g. Call Lawyer" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Time</Label>
-                                                    <Input value={newActivity.time} onChange={e => setNewActivity({ ...newActivity, time: e.target.value })} placeholder="e.g. 10:00 AM" />
-                                                </div>
-                                            </div>
-                                            <DialogFooter><Button onClick={handleAddActivity}>Add Activity</Button></DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </CardHeader>
-                                <CardContent>
-                                    {elderActivities.length === 0 ? (
-                                        <p className="text-muted-foreground text-sm text-center py-4">No activities assigned.</p>
-                                    ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            {elderActivities.map(act => (
-                                                <div key={act.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg">
-                                                    <div>
-                                                        <p className={`font-medium ${act.completed ? 'line-through text-muted-foreground' : ''}`}>{act.title}</p>
-                                                        <p className="text-xs text-muted-foreground">{act.dueTime} • {act.completed ? 'Completed' : 'Pending'}</p>
-                                                    </div>
-                                                    <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeActivity(act.id)}>
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            ))}
+                                        <BadgeStatus status={report.status} />
+                                    </div>
+                                ))}
+                                {myReports.length === 0 && <p className="text-muted-foreground text-sm">No recent reports from your assigned elders.</p>}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Quick Alerts */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Recent Alerts</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {recentAlerts.map((alert: any) => (
+                                    <div key={alert.id} className="flex items-start gap-3 p-3 bg-red-50/50 border border-red-100 rounded-lg">
+                                        <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
+                                        <div>
+                                            <p className="font-medium text-sm text-red-900">{alert.message || `SOS from ${alert.name}`}</p>
+                                            <p className="text-xs text-red-700 mt-1">{alert.time}</p>
                                         </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-                )}
+                                    </div>
+                                ))}
+                                {recentAlerts.length === 0 && <p className="text-muted-foreground text-sm">No active alerts.</p>}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </CaregiverLayout>
     );
+}
+
+function BadgeStatus({ status }: { status: string }) {
+    if (status === 'sent') return <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">New</span>;
+    if (status === 'seen') return <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">Seen</span>;
+    return <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full font-medium">{status}</span>;
 }

@@ -12,12 +12,12 @@ import { VideoCallInterface } from '@/components/communication/VideoCallInterfac
 import { Button } from '@/components/ui/button';
 
 export default function Messages() {
-    const { users, messages, startCall, activeCall } = useApp();
+    const { user, users, messages, startCall, activeCall } = useApp();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
-    // Get all users who are NOT caregivers (i.e., elders)
-    const elders = users.filter(u => u.role === 'elder');
+    // Get assigned elders only
+    const elders = users.filter(u => u.role === 'elder' && u.assignedCaregiverId === user?.id);
 
     const filteredUsers = elders.filter(u =>
         u.name.toLowerCase().includes(searchQuery.toLowerCase())

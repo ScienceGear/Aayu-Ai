@@ -42,10 +42,10 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // Health check
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
+    res.json({
+        status: 'ok',
         mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-        env: process.env.NODE_ENV 
+        env: process.env.NODE_ENV
     });
 });
 
@@ -105,10 +105,74 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('medicine_alert', (data) => {
+        console.log('🚨 Medicine Alert:', data);
+        // In a real app, find assigned caregiver. Here, broadcast to all others (likely caregivers)
+        socket.broadcast.emit('receive_medicine_alert', data);
+    });
+
+    socket.on('sos_alert', async (data) => {
+        console.log('🚨 SOS Alert:', data);
+
+        // Save to Database
+        try {
+            const Alert = require('./models/Alert');
+            const crypto = require('crypto');
+            const newAlert = new Alert({
+                id: crypto.randomUUID(),
+                elderId: data.elderId,
+                name: data.name,
+                location: data.location,
+                time: data.time,
+                status: 'active'
+            });
+            await newAlert.save();
+        } catch (e) {
+            console.error("Error saving alert to DB:", e);
+        }
+
+        // Broadcast to all connected clients (especially caregivers)
+        socket.broadcast.emit('sos_alert', data);
+    });
+
     socket.on('answer_call', (data) => {
         const { to, answer } = data;
         console.log(`✅ Call answered by ${socket.id} to ${to}`);
-        io.to(to).emit('call_answered', { answer });
+        io.to(to).emit('call_answered', {
+            from: socket.id,
+            answer
+        });
+    });
+
+    // --- Game Events ---
+    socket.on('game_invite', (data) => {
+        const { to, from, gameType, fromName } = data;
+        console.log(`🎮 Game invite from ${fromName} to ${to}`);
+        io.to(to).emit('receive_game_invite', { from, fromName, gameType, gameId: data.gameId });
+    });
+
+    socket.on('game_accept', (data) => {
+        const { to, from, gameId } = data;
+        console.log(`✅ Game accepted by ${from}`);
+        io.to(to).emit('game_start', { opponent: from, gameId });
+    });
+
+    socket.on('game_move', (data) => {
+        const { to, move, gameId } = data;
+        io.to(to).emit('receive_game_move', { move, gameId });
+    });
+
+    // Generic Game Event Relay (allows flexible game logic)
+    socket.on('game_event', (data) => {
+        const { to, type, payload } = data;
+        io.to(to).emit('receive_game_event', { type, payload, from: socket.id });
+    });
+
+    // --- Data Sync ---
+    socket.on('sync_data', (data) => {
+        console.log('🔄 Data Sync:', data.type, data.action, 'for', data.targetUserId || 'unknown');
+        // Broadcast to everyone so caregivers and elders stay in sync
+        io.emit('sync_data', data);
     });
 
     socket.on('ice_candidate', (data) => {
@@ -143,11 +207,13 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 if (require.main === module) {
     server.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
+        console.log(`Creating/Serving static files from ../dist`);
+        console.log(`⚠️  NOTE: You are running in production mode. To see live code changes, stop this and run: npm run dev`);
     });
 }
 

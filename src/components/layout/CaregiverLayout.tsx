@@ -24,6 +24,7 @@ import {
     Sun,
     Moon,
     Video,
+    AlertTriangle,
 } from 'lucide-react';
 
 export function CaregiverLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ export function CaregiverLayout({ children }: { children: React.ReactNode }) {
     const navItems = [
         { icon: Home, label: t.dashboard, path: '/caregiver' },
         { icon: Users, label: t.assignedElders, path: '/caregiver/elders' },
+        { icon: AlertTriangle, label: 'SOS Alerts', path: '/caregiver/sos' },
         { icon: FileText, label: t.reports, path: '/caregiver/reports' },
         { icon: MessageSquare, label: t.messages, path: '/caregiver/messages' },
     ];

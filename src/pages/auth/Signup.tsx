@@ -129,6 +129,7 @@ export default function Signup() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        status: formData.role === 'caregiver' ? 'pending' : 'active',
         phone: formData.phone || undefined,
         age: formData.age ? parseInt(formData.age) : undefined,
         gender: formData.gender ? (formData.gender as any) : undefined,

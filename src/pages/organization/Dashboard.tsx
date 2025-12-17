@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { OrganizationLayout } from '@/components/layout/OrganizationLayout';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from '@/lib/translations';
@@ -9,26 +9,56 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-const elderStatusData = [
-    { name: 'Stable', value: 85, color: 'hsl(var(--success))' },
-    { name: 'Needs Attention', value: 10, color: 'hsl(var(--warning))' },
-    { name: 'Critical', value: 5, color: 'hsl(var(--destructive))' },
-];
-
 export default function OrganizationDashboard() {
     const { user, settings, users } = useApp();
     const t = useTranslation(settings.language);
     const navigate = useNavigate();
 
-    // Actual counts from Context
+    const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
+    const [pendingReports, setPendingReports] = useState<any[]>([]);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const alertsRes = await fetch(`${API_URL}/care/alerts`);
+                if (alertsRes.ok) {
+                    const data = await alertsRes.json();
+                    setActiveAlerts(data.filter((a: any) => a.status === 'active'));
+                }
+                const reportsRes = await fetch(`${API_URL}/care/reports`);
+                if (reportsRes.ok) {
+                    const data = await reportsRes.json();
+                    setPendingReports(data.filter((r: any) => r.status === 'pending' || r.status === 'sent'));
+                }
+            } catch (e) { console.error(e); }
+        };
+        fetchData();
+    }, []);
+
     const totalElders = users.filter(u => u.role === 'elder').length;
     const totalCaregivers = users.filter(u => u.role === 'caregiver').length;
 
+    // Determine Health Status
+    const criticalElderIds = new Set(activeAlerts.map(a => a.elderId));
+    const attentionElderIds = new Set(pendingReports.map(r => r.userId).filter(id => !criticalElderIds.has(id)));
+
+    // Ensure we count actual elders available in the system
+    const realCriticalCount = users.filter(u => u.role === 'elder' && criticalElderIds.has(u.id)).length;
+    const realAttentionCount = users.filter(u => u.role === 'elder' && attentionElderIds.has(u.id)).length;
+    const stableCount = Math.max(0, totalElders - realCriticalCount - realAttentionCount);
+
+    const elderStatusData = [
+        { name: 'Stable', value: stableCount, color: '#22c55e' },
+        { name: 'Needs Attention', value: realAttentionCount, color: '#f97316' },
+        { name: 'Critical', value: realCriticalCount, color: '#ef4444' },
+    ];
+
     const stats = [
         { label: t.totalElders, value: totalElders, icon: Users, color: 'text-blue-500' },
-        { label: t.activeCaregivers, value: totalCaregivers, icon: Activity, color: 'text-green-500' },
-        { label: t.pendingApprovals, value: 0, icon: UserPlus, color: 'text-orange-500' }, // Assume 0 pending for now
-        { label: t.activeAlerts, value: 2, icon: AlertTriangle, color: 'text-red-500' },
+        { label: 'Active Caregivers', value: totalCaregivers, icon: Activity, color: 'text-green-500' },
+        { label: 'Pending Reports', value: pendingReports.length, icon: UserPlus, color: 'text-orange-500' },
+        { label: t.activeAlerts, value: activeAlerts.length, icon: AlertTriangle, color: 'text-red-500' },
     ];
 
     // Recent Users (last 5)

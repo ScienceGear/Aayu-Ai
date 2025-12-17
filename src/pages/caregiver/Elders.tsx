@@ -1,0 +1,351 @@
+import React, { useState } from 'react';
+import { CaregiverLayout } from '@/components/layout/CaregiverLayout';
+import { useApp } from '@/contexts/AppContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    Users,
+    AlertTriangle,
+    Pill,
+    Dumbbell,
+    Plus,
+    Video,
+    Phone,
+    Trash2,
+    CheckCircle2,
+    XCircle
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+export default function CaregiverElders() {
+    const { user, users, exercises, medicines, activities, addExercise, addMedicine, addActivity, removeExercise, removeMedicine, removeActivity } = useApp();
+    const [selectedElderId, setSelectedElderId] = useState<string | null>(null);
+
+    // Dialog States
+    const [isAddExerciseOpen, setIsAddExerciseOpen] = useState(false);
+    const [newExercise, setNewExercise] = useState({
+        name: '', duration: '', calories: '', difficulty: 'easy', instructions: '', videoLink: ''
+    });
+
+    const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
+    const [newMedicine, setNewMedicine] = useState({
+        name: '', dosage: '', time: '', stock: ''
+    });
+
+    const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+    const [newActivity, setNewActivity] = useState({
+        title: '', time: ''
+    });
+
+    // Only show elders assigned to this caregiver
+    const assignedElders = users.filter(u => u.role === 'elder' && u.assignedCaregiverId === user?.id);
+    const selectedElder = assignedElders.find(u => u.id === selectedElderId);
+
+    // Filtered Data for Selected Elder
+    const elderExercises = exercises.filter(e => e.userId === selectedElderId);
+    const elderMedicines = medicines.filter(m => m.userId === selectedElderId);
+    const elderActivities = activities.filter(a => a.userId === selectedElderId);
+
+    const handleAddActivity = () => {
+        if (!selectedElderId || !newActivity.title) return;
+        addActivity({
+            id: crypto.randomUUID(),
+            userId: selectedElderId,
+            title: newActivity.title,
+            completed: false,
+            dueTime: newActivity.time || '12:00 PM',
+            priority: 'medium'
+        });
+        setIsAddActivityOpen(false);
+        setNewActivity({ title: '', time: '' });
+    };
+
+    const handleAddExercise = () => {
+        if (!selectedElderId || !newExercise.name) return;
+        addExercise({
+            id: crypto.randomUUID(),
+            userId: selectedElderId,
+            assignedBy: user?.id || 'caregiver',
+            name: newExercise.name,
+            duration: newExercise.duration,
+            calories: parseInt(newExercise.calories) || 0,
+            difficulty: newExercise.difficulty as any,
+            instructions: newExercise.instructions,
+            videoLink: newExercise.videoLink,
+            completed: false,
+            date: new Date().toISOString()
+        });
+        setIsAddExerciseOpen(false);
+        setNewExercise({ name: '', duration: '', calories: '', difficulty: 'easy', instructions: '', videoLink: '' });
+    };
+
+    const handleAddMedicine = () => {
+        if (!selectedElderId || !newMedicine.name) return;
+        addMedicine({
+            id: crypto.randomUUID(),
+            userId: selectedElderId,
+            assignedBy: user?.id || 'caregiver',
+            name: newMedicine.name,
+            dosage: newMedicine.dosage,
+            time: newMedicine.time,
+            stock: parseInt(newMedicine.stock) || 0,
+            taken: false,
+        });
+        setIsAddMedicineOpen(false);
+        setNewMedicine({ name: '', dosage: '', time: '', stock: '' });
+    };
+
+    return (
+        <CaregiverLayout>
+            <div className="space-y-6 animate-fade-in">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold">Manage Elders</h1>
+                        <p className="text-muted-foreground mt-1">View and update care plans for your assigned elders.</p>
+                    </div>
+                </div>
+
+                {/* Elder Selection / List */}
+                {!selectedElderId ? (
+                    <div className="space-y-4">
+                        {assignedElders.length === 0 ? (
+                            <Card><CardContent className="p-8 text-center text-muted-foreground">No elders found. Contact admin to add users.</CardContent></Card>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {assignedElders.map(elder => (
+                                    <Card key={elder.id} className="card-hover cursor-pointer" onClick={() => setSelectedElderId(elder.id)}>
+                                        <CardContent className="p-6 flex flex-col items-center text-center gap-3">
+                                            <Avatar className="w-20 h-20">
+                                                <AvatarImage src={elder.profilePic} />
+                                                <AvatarFallback>{elder.name[0]}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <h3 className="font-bold text-lg">{elder.name}</h3>
+                                                <p className="text-sm text-muted-foreground">{elder.age} years • {elder.gender}</p>
+                                            </div>
+                                            <Button variant="outline" className="w-full mt-2">Manage Care Plan</Button>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    // Detailed View for Selected Elder
+                    <div className="space-y-6">
+                        <Button variant="ghost" onClick={() => setSelectedElderId(null)} className="mb-2">← Back to All Elders</Button>
+
+                        {/* Elder Profile Header */}
+                        <div className="flex items-center gap-4 bg-muted/30 p-4 rounded-xl border border-border">
+                            <Avatar className="w-16 h-16">
+                                <AvatarImage src={selectedElder?.profilePic} />
+                                <AvatarFallback>{selectedElder?.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <h2 className="text-2xl font-bold">{selectedElder?.name}</h2>
+                                <p className="text-muted-foreground">{selectedElder?.email} • {selectedElder?.phone || 'No phone'}</p>
+                            </div>
+                            <div className="ml-auto flex gap-2">
+                                <Button size="sm" variant="outline"><Phone className="w-4 h-4 mr-2" /> Call</Button>
+                                <Button size="sm" variant="outline"><Video className="w-4 h-4 mr-2" /> Video</Button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Medicine Management */}
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Pill className="w-5 h-5 text-blue-500" /> Medicines
+                                    </CardTitle>
+                                    <Dialog open={isAddMedicineOpen} onOpenChange={setIsAddMedicineOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Med</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader><DialogTitle>Add Medicine</DialogTitle></DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label>Medicine Name</Label>
+                                                    <Input value={newMedicine.name} onChange={e => setNewMedicine({ ...newMedicine, name: e.target.value })} placeholder="e.g. Asprin" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Dosage</Label>
+                                                    <Input value={newMedicine.dosage} onChange={e => setNewMedicine({ ...newMedicine, dosage: e.target.value })} placeholder="e.g. 1 tablet" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Time</Label>
+                                                    <Input type="time" value={newMedicine.time} onChange={e => setNewMedicine({ ...newMedicine, time: e.target.value })} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Stock</Label>
+                                                    <Input type="number" value={newMedicine.stock} onChange={e => setNewMedicine({ ...newMedicine, stock: e.target.value })} placeholder="e.g. 30" />
+                                                </div>
+                                            </div>
+                                            <DialogFooter><Button onClick={handleAddMedicine}>Add Medicine</Button></DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </CardHeader>
+                                <CardContent>
+                                    {elderMedicines.length === 0 ? (
+                                        <p className="text-muted-foreground text-sm text-center py-4">No medicines assigned.</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {elderMedicines.map(med => (
+                                                <div key={med.id} className={`flex justify-between items-center p-3 rounded-lg border ${med.taken ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        {med.taken ? (
+                                                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                                        ) : (
+                                                            <XCircle className="w-5 h-5 text-red-600" />
+                                                        )}
+                                                        <div>
+                                                            <p className="font-medium flex items-center gap-2">
+                                                                {med.name}
+                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${med.taken ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                                                    {med.taken ? 'Taken' : 'Not Taken'}
+                                                                </span>
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">{med.dosage} at {med.time}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive h-8 w-8" onClick={() => removeMedicine(med.id)}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Exercise Management */}
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Dumbbell className="w-5 h-5 text-green-500" /> Exercise Plan
+                                    </CardTitle>
+                                    <Dialog open={isAddExerciseOpen} onOpenChange={setIsAddExerciseOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Exercise</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader><DialogTitle>Add Exercise</DialogTitle></DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label>Exercise Name</Label>
+                                                    <Input value={newExercise.name} onChange={e => setNewExercise({ ...newExercise, name: e.target.value })} placeholder="e.g. Walking" />
+                                                </div>
+                                                <div className="flex gap-4">
+                                                    <div className="space-y-2 flex-1">
+                                                        <Label>Duration</Label>
+                                                        <Input value={newExercise.duration} onChange={e => setNewExercise({ ...newExercise, duration: e.target.value })} placeholder="e.g. 15 mins" />
+                                                    </div>
+                                                    <div className="space-y-2 flex-1">
+                                                        <Label>Calories</Label>
+                                                        <Input type="number" value={newExercise.calories} onChange={e => setNewExercise({ ...newExercise, calories: e.target.value })} placeholder="e.g. 50" />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Difficulty</Label>
+                                                    <Select value={newExercise.difficulty} onValueChange={v => setNewExercise({ ...newExercise, difficulty: v })}>
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="easy">Easy</SelectItem>
+                                                            <SelectItem value="medium">Medium</SelectItem>
+                                                            <SelectItem value="hard">Hard</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>YouTube Link (Optional)</Label>
+                                                    <Input value={newExercise.videoLink} onChange={e => setNewExercise({ ...newExercise, videoLink: e.target.value })} placeholder="e.g. https://youtube.com/..." />
+                                                </div>
+                                            </div>
+                                            <DialogFooter><Button onClick={handleAddExercise}>Add Exercise</Button></DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </CardHeader>
+                                <CardContent>
+                                    {elderExercises.length === 0 ? (
+                                        <p className="text-muted-foreground text-sm text-center py-4">No exercises assigned.</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {elderExercises.map(ex => (
+                                                <div key={ex.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg">
+                                                    <div>
+                                                        <p className="font-medium">{ex.name}</p>
+                                                        <div className="flex gap-2 text-xs text-muted-foreground">
+                                                            <span>{ex.duration}</span>
+                                                            <span>•</span>
+                                                            <span className="capitalize">{ex.difficulty}</span>
+                                                        </div>
+                                                    </div>
+                                                    <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeExercise(ex.id)}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                            {/* Activity Management */}
+                            <Card className="lg:col-span-2">
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5 text-purple-500" /> Daily Activities & Tasks
+                                    </CardTitle>
+                                    <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader><DialogTitle>Add Activity</DialogTitle></DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label>Activity Title</Label>
+                                                    <Input value={newActivity.title} onChange={e => setNewActivity({ ...newActivity, title: e.target.value })} placeholder="e.g. Call Lawyer" />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Time</Label>
+                                                    <Input type="time" value={newActivity.time} onChange={e => setNewActivity({ ...newActivity, time: e.target.value })} />
+                                                </div>
+                                            </div>
+                                            <DialogFooter><Button onClick={handleAddActivity}>Add Activity</Button></DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </CardHeader>
+                                <CardContent>
+                                    {elderActivities.length === 0 ? (
+                                        <p className="text-muted-foreground text-sm text-center py-4">No activities assigned.</p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {elderActivities
+                                                .sort((a, b) => a.dueTime.localeCompare(b.dueTime))
+                                                .map(act => (
+                                                    <div key={act.id} className="flex justify-between items-center p-3 bg-muted/20 rounded-lg">
+                                                        <div>
+                                                            <p className={`font-medium ${act.completed ? 'line-through text-muted-foreground' : ''}`}>{act.title}</p>
+                                                            <p className="text-xs text-muted-foreground">{act.dueTime} • {act.completed ? 'Completed' : 'Pending'}</p>
+                                                        </div>
+                                                        <Button size="icon" variant="ghost" className="text-red-500 h-8 w-8" onClick={() => removeActivity(act.id)}>
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </CaregiverLayout>
+    );
+}

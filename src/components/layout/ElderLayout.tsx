@@ -47,6 +47,7 @@ export function ElderLayout({ children }: { children: React.ReactNode }) {
     { icon: AlertTriangle, label: t.emergency, path: '/elder/emergency' },
     { icon: Users, label: t.caregivers, path: '/elder/caregivers' },
     { icon: Dumbbell, label: t.exercise, path: '/elder/exercise' },
+    { icon: Users, label: 'Community', path: '/elder/community' }, // Manually add 'Community' label for now since key might not exist in t
   ];
 
   const handleLogout = () => {

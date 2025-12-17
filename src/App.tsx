@@ -8,6 +8,7 @@ import { AppProvider, useApp } from "@/contexts/AppContext";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
+import PendingApproval from "@/pages/auth/PendingApproval";
 
 // Elder Pages
 import ElderDashboard from "@/pages/elder/Dashboard";
@@ -17,6 +18,7 @@ import VirtualGarden from "@/pages/elder/Garden";
 import Emergency from "@/pages/elder/Emergency";
 import Settings from "@/pages/elder/Settings";
 import Exercise from "@/pages/elder/Exercise";
+import ElderCommunity from "@/pages/elder/Community";
 import ElderCaregivers from "@/pages/elder/Caregivers"; // Renamed to avoid conflict
 import ElderReports from "@/pages/elder/Reports";
 import Meditation from "@/pages/elder/Meditation";
@@ -26,24 +28,37 @@ import { IncomingCall } from "@/components/communication/IncomingCall";
 import CaregiverDashboard from "@/pages/caregiver/Dashboard";
 import CaregiverSettings from "@/pages/caregiver/Settings";
 import CaregiverMessages from "@/pages/caregiver/Messages";
+import CaregiverElders from "@/pages/caregiver/Elders";
+import CaregiverReports from "@/pages/caregiver/Reports";
+import CaregiverSOS from "@/pages/caregiver/SOS";
 // Organization Pages
 import OrganizationDashboard from "@/pages/organization/Dashboard";
 import OrganizationCaregivers from "@/pages/organization/Caregivers";
 import OrganizationSettings from "@/pages/organization/Settings";
+import OrganizationReports from "@/pages/organization/Reports";
+import OrganizationAlerts from "@/pages/organization/Alerts";
 
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, user } = useApp();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  if (user?.role === 'caregiver' && user?.status === 'pending') {
+    return <Navigate to="/pending-approval" replace />;
+  }
   return <>{children}</>;
 }
 
 function RoleBasedRedirect() {
   const { user } = useApp();
   if (!user) return <Navigate to="/login" replace />;
+
+  if (user.role === 'caregiver' && user.status === 'pending') {
+    return <Navigate to="/pending-approval" replace />;
+  }
 
   switch (user.role) {
     case 'caregiver':
@@ -63,6 +78,7 @@ function AppRoutes() {
       <Route path="/" element={isAuthenticated ? <RoleBasedRedirect /> : <Landing />} />
       <Route path="/login" element={isAuthenticated ? <RoleBasedRedirect /> : <Login />} />
       <Route path="/signup" element={isAuthenticated ? <RoleBasedRedirect /> : <Signup />} />
+      <Route path="/pending-approval" element={<PendingApproval />} />
 
       {/* Elder Routes */}
       <Route path="/elder" element={<ProtectedRoute><ElderDashboard /></ProtectedRoute>} />
@@ -74,18 +90,21 @@ function AppRoutes() {
       <Route path="/elder/reports" element={<ProtectedRoute><ElderReports /></ProtectedRoute>} />
       <Route path="/elder/caregivers" element={<ProtectedRoute><ElderCaregivers /></ProtectedRoute>} />
       <Route path="/elder/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
+      <Route path="/elder/community" element={<ProtectedRoute><ElderCommunity /></ProtectedRoute>} />
 
       {/* Caregiver Routes */}
       <Route path="/caregiver" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
-      <Route path="/caregiver/elders" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
-      <Route path="/caregiver/reports" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />
+      <Route path="/caregiver/elders" element={<ProtectedRoute><CaregiverElders /></ProtectedRoute>} />
+      <Route path="/caregiver/reports" element={<ProtectedRoute><CaregiverReports /></ProtectedRoute>} />
       <Route path="/caregiver/messages" element={<ProtectedRoute><CaregiverMessages /></ProtectedRoute>} />
+      <Route path="/caregiver/sos" element={<ProtectedRoute><CaregiverSOS /></ProtectedRoute>} />
       <Route path="/caregiver/settings" element={<ProtectedRoute><CaregiverSettings /></ProtectedRoute>} />
 
       {/* Organization Routes */}
       <Route path="/organization" element={<ProtectedRoute><OrganizationDashboard /></ProtectedRoute>} />
       <Route path="/organization/caregivers" element={<ProtectedRoute><OrganizationCaregivers /></ProtectedRoute>} />
-      <Route path="/organization/alerts" element={<ProtectedRoute><OrganizationDashboard /></ProtectedRoute>} />
+      <Route path="/organization/reports" element={<ProtectedRoute><OrganizationReports /></ProtectedRoute>} />
+      <Route path="/organization/alerts" element={<ProtectedRoute><OrganizationAlerts /></ProtectedRoute>} />
       <Route path="/organization/settings" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
 
       <Route path="*" element={<NotFound />} />

@@ -28,6 +28,8 @@ export interface User {
   height?: number; // cm
   weight?: number; // kg
   bloodGroup?: string;
+  assignedCaregiverId?: string;
+  status?: 'active' | 'pending';
   // Caregiver fields
   rating?: number;
   ratingsCount?: number;
@@ -57,6 +59,7 @@ export interface Exercise {
   instructions: string;
   difficulty: ExerciseDifficulty;
   date: string;
+  videoLink?: string;
 }
 
 export interface Medicine {
@@ -96,6 +99,17 @@ export interface Activity {
   priority: 'high' | 'medium' | 'low';
 }
 
+export interface Report {
+  id: string;
+  userId: string; // The elder who sent it
+  issue: string;
+  painLevel: number;
+  description: string;
+  date: string;
+  status: 'sent' | 'delivered' | 'seen';
+}
+
+
 interface Settings {
   textSize: TextSize;
   theme: 'light' | 'dark';
@@ -128,6 +142,7 @@ interface AppContextType {
   addMedicine: (medicine: Medicine) => void;
   removeMedicine: (id: string) => void;
   toggleMedicine: (id: string) => void;
+  updateMedicine: (id: string, updatedData: Medicine) => void;
 
   messages: Message[];
   sendMessage: (receiverId: string, content: string) => void;
@@ -142,6 +157,13 @@ interface AppContextType {
   addActivity: (activity: Activity) => void;
   removeActivity: (id: string) => void;
   toggleActivityStatus: (id: string) => void;
+
+  reports: Report[];
+  addReport: (report: Report) => void;
+  markReportAsSeen: (id: string) => void;
+
+  socketRef: React.MutableRefObject<any>; // Using any for simplicity with Socket.IO type handling in React context
+
 }
 
 const defaultSettings: Settings = {
@@ -162,6 +184,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ callId: string, callerId: string, callerName: string, signal: any, type: 'voice' | 'video' } | null>(null);
@@ -236,6 +260,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast({ description: 'Call ended' });
     });
 
+    // --- Data Sync Listener ---
+    socketRef.current.on('sync_data', (data: any) => {
+      console.log('🔄 Received Sync Data:', data.type, data.action);
+
+      const updateState = (setter: React.Dispatch<React.SetStateAction<any[]>>) => {
+        setter(prev => {
+          if (data.action === 'add') {
+            return prev.some(i => i.id === data.item.id) ? prev : [...prev, data.item];
+          }
+          if (data.action === 'update') {
+            return prev.map(i => i.id === data.item.id ? data.item : i);
+          }
+          if (data.action === 'delete') {
+            return prev.filter(i => i.id !== data.itemId);
+          }
+          return prev;
+        });
+      };
+
+      if (data.type === 'exercise') updateState(setExercises);
+      if (data.type === 'medicine') updateState(setMedicines);
+      if (data.type === 'activity') updateState(setActivities);
+    });
+
     // Fetch Initial Data
     fetchInitialData();
 
@@ -257,15 +305,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fetchInitialData = async () => {
     try {
-      const [usersRes, exercisesRes, medicinesRes] = await Promise.all([
+      const [usersRes, exercisesRes, medicinesRes, activitiesRes, reportsRes] = await Promise.all([
         fetch(`${API_URL}/users`),
         fetch(`${API_URL}/care/exercises`),
-        fetch(`${API_URL}/care/medicines`)
+        fetch(`${API_URL}/care/medicines`),
+        fetch(`${API_URL}/care/activities`),
+        fetch(`${API_URL}/care/reports`)
       ]);
 
       if (usersRes.ok) setUsers(await usersRes.json());
       if (exercisesRes.ok) setExercises(await exercisesRes.json());
       if (medicinesRes.ok) setMedicines(await medicinesRes.json());
+      if (activitiesRes.ok) setActivities(await activitiesRes.json());
+      if (reportsRes.ok) setReports(await reportsRes.json());
 
     } catch (err) {
       console.error("Failed to fetch data:", err);
@@ -279,6 +331,118 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .then(res => res.json())
         .then(data => setMessages(data))
         .catch(err => console.error(err));
+    }
+  }, [user]);
+
+  // --- Medicine Compliance Monitor ---
+  const [alertedMedicines, setAlertedMedicines] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!user || user.role !== 'elder') return;
+
+    const checkMedicines = () => {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const myMedicines = medicines.filter(m => m.userId === user.id);
+
+      myMedicines.forEach(med => {
+        // Parse time "HH:MM AM/PM"
+        const [timePart, period] = med.time.split(' ');
+        let [hours, minutes] = timePart.split(':').map(Number);
+
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+
+        const medMinutes = hours * 60 + minutes;
+
+        // Check instance: If med time is passed by > 15 mins and not taken
+        // And we haven't alerted for this specific medicine TODAY
+        const minutesDiff = currentMinutes - medMinutes;
+
+        // Simple check: alert if 1 minute past due (for demo) up to 60 mins past
+        if (minutesDiff > 1 && minutesDiff < 60 && !med.taken && !alertedMedicines.has(med.id)) {
+
+          console.log(`🚨 Alerting for medicine: ${med.name}`);
+
+          // 1. Send Report
+          const report: Report = {
+            id: crypto.randomUUID(),
+            userId: user.id,
+            issue: 'Missed Medicine',
+            painLevel: 0,
+            description: `Alert: ${user.name} missed their scheduled medicine: ${med.name} at ${med.time}.`,
+            date: new Date().toLocaleString(),
+            status: 'sent'
+          };
+          addReport(report);
+
+          // 2. Emit Socket Alert
+          socketRef.current?.emit('medicine_alert', {
+            elderId: user.id,
+            elderName: user.name,
+            medicineName: med.name,
+            time: med.time
+          });
+
+          // 3. Mark as alerted locally
+          setAlertedMedicines(prev => new Set(prev).add(med.id));
+        }
+      });
+    };
+
+    const interval = setInterval(checkMedicines, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, [user, medicines, alertedMedicines]);
+
+  // Listen for alerts (Caregiver Side)
+  useEffect(() => {
+    if (socketRef.current) {
+      socketRef.current.on('receive_medicine_alert', (data: any) => {
+        // Only show if I am a caregiver
+        if (user?.role === 'caregiver') {
+          toast({
+            title: '🚨 Medicine Missed!',
+            description: `${data.elderName} missed ${data.medicineName} at ${data.time}`,
+            variant: 'destructive',
+            duration: 10000,
+          });
+          // Also play a sound if possible (omitted for strictness)
+        }
+      });
+
+      // SOS Alert Listener
+      socketRef.current.on('sos_alert', (data: any) => {
+        console.log('🚨 Received SOS Alert:', data);
+        if (user?.role === 'caregiver') {
+          // Play Alarm Sound
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContext) {
+            const audioCtx = new AudioContext();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'sawtooth'; // Aggressive alarm sound
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+            oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 1.0);
+
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 3); // Play for 3 seconds
+          }
+
+          toast({
+            title: '🚨 SOS EMERGENCY!',
+            description: `${data.name} triggered SOS at ${data.time}. Location: ${data.location}`,
+            variant: 'destructive',
+            duration: 20000,
+          });
+        }
+      });
     }
   }, [user]);
 
@@ -395,13 +559,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (res.ok) {
       const data = await res.json();
       setExercises(prev => [...prev, data]);
+      socketRef.current?.emit('sync_data', { type: 'exercise', action: 'add', item: data, targetUserId: data.userId });
       toast({ title: 'Plan Updated', description: 'New exercise added.' });
     }
   };
 
   const removeExercise = async (id: string) => {
     await fetch(`${API_URL}/care/exercises/${id}`, { method: 'DELETE' });
+    const ex = exercises.find(e => e.id === id); // Find to know userId
     setExercises(prev => prev.filter(e => e.id !== id));
+    if (ex) socketRef.current?.emit('sync_data', { type: 'exercise', action: 'delete', itemId: id, targetUserId: ex.userId });
     toast({ title: 'Removed', description: 'Exercise removed from plan.' });
   };
 
@@ -417,6 +584,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
     });
+    socketRef.current?.emit('sync_data', { type: 'exercise', action: 'update', item: updated, targetUserId: updated.userId });
   };
 
   const addMedicine = async (medicine: Medicine) => {
@@ -428,13 +596,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (res.ok) {
       const data = await res.json();
       setMedicines(prev => [...prev, data]);
+      socketRef.current?.emit('sync_data', { type: 'medicine', action: 'add', item: data, targetUserId: data.userId });
       toast({ title: 'Medicine Added', description: 'New medicine tracked.' });
     }
   };
 
   const removeMedicine = async (id: string) => {
     await fetch(`${API_URL}/care/medicines/${id}`, { method: 'DELETE' });
+    const med = medicines.find(m => m.id === id);
     setMedicines(prev => prev.filter(m => m.id !== id));
+    if (med) socketRef.current?.emit('sync_data', { type: 'medicine', action: 'delete', itemId: id, targetUserId: med.userId });
   };
 
   const toggleMedicine = async (id: string) => {
@@ -448,6 +619,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updated)
     });
+    socketRef.current?.emit('sync_data', { type: 'medicine', action: 'update', item: updated, targetUserId: updated.userId });
+  };
+
+  const updateMedicine = async (id: string, updatedData: Medicine) => {
+    setMedicines(prev => prev.map(m => m.id === id ? updatedData : m));
+    await fetch(`${API_URL}/care/medicines/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedData)
+    });
+    socketRef.current?.emit('sync_data', { type: 'medicine', action: 'update', item: updatedData, targetUserId: updatedData.userId });
+    toast({ title: 'Medicine Updated', description: 'Changes saved successfully.' });
   };
 
   // --- Communication Logic ---
@@ -528,18 +711,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // --- Activity Management ---
-  const addActivity = (activity: Activity) => {
-    setActivities(prev => [...prev, activity]);
-    toast({ title: 'Activity Added', description: 'New task scheduled.' });
+  const addActivity = async (activity: Activity) => {
+    const res = await fetch(`${API_URL}/care/activities`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(activity)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setActivities(prev => [...prev, data]);
+      socketRef.current?.emit('sync_data', { type: 'activity', action: 'add', item: data, targetUserId: data.userId });
+      toast({ title: 'Activity Added', description: 'New task scheduled.' });
+    }
   };
 
-  const removeActivity = (id: string) => {
+  const removeActivity = async (id: string) => {
+    await fetch(`${API_URL}/care/activities/${id}`, { method: 'DELETE' });
+    const act = activities.find(a => a.id === id);
     setActivities(prev => prev.filter(a => a.id !== id));
+    if (act) socketRef.current?.emit('sync_data', { type: 'activity', action: 'delete', itemId: id, targetUserId: act.userId });
   };
 
-  const toggleActivityStatus = (id: string) => {
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, completed: !a.completed } : a));
+  const toggleActivityStatus = async (id: string) => {
+    const act = activities.find(a => a.id === id);
+    if (!act) return;
+    const updated = { ...act, completed: !act.completed };
+
+    setActivities(prev => prev.map(a => a.id === id ? updated : a));
+    await fetch(`${API_URL}/care/activities/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    socketRef.current?.emit('sync_data', { type: 'activity', action: 'update', item: updated, targetUserId: updated.userId });
   };
+
+  // --- Report Management ---
+  const addReport = async (report: Report) => {
+    const res = await fetch(`${API_URL}/care/reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(report)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setReports(prev => [data, ...prev]);
+      toast({ title: 'Report Sent', description: 'Caregiver notified.' });
+    }
+  };
+
+  const markReportAsSeen = async (id: string) => {
+    const report = reports.find(r => r.id === id);
+    if (!report) return;
+    const updated: Report = { ...report, status: 'seen' as const };
+
+    setReports(prev => prev.map(r => r.id === id ? updated : r));
+    await fetch(`${API_URL}/care/reports/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+  };
+
 
   return (
     <AppContext.Provider
@@ -547,10 +780,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         user, setUser, settings, updateSettings, isAuthenticated: !!user,
         login, logout, signup, users, addUser, removeUser,
         exercises, medicines, addExercise, removeExercise, toggleExercise,
-        addMedicine, removeMedicine, toggleMedicine, updateUser,
+        addMedicine, removeMedicine, toggleMedicine, updateMedicine, updateUser,
         messages, sendMessage, activeCall, startCall, endCall,
         incomingCall, answerCall, rejectCall,
-        activities, addActivity, removeActivity, toggleActivityStatus
+        activities, addActivity, removeActivity, toggleActivityStatus,
+        reports, addReport, markReportAsSeen,
+        socketRef
+
       }}
     >
       {children}

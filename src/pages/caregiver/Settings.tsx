@@ -20,7 +20,31 @@ export default function CaregiverSettings() {
         name: user?.name || '',
         phone: user?.phone || '',
         email: user?.email || '',
+        profilePic: user?.profilePic || '',
     });
+
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                toast({ title: "File too large", description: "Please upload an image smaller than 5MB.", variant: "destructive" });
+                return;
+            }
+
+            // Using simple base64 for now to ensure it works without backend endpoint
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result as string;
+                setProfileData(prev => ({ ...prev, profilePic: base64 }));
+                updateUser({ profilePic: base64 }); // Save immediately
+                toast({ title: "Image Uploaded", description: "Profile picture updated successfully." });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
 
     React.useEffect(() => {
         if (user) {
@@ -28,6 +52,7 @@ export default function CaregiverSettings() {
                 name: user.name,
                 phone: user.phone || '',
                 email: user.email,
+                profilePic: user.profilePic || '',
             });
         }
     }, [user]);
@@ -60,20 +85,57 @@ export default function CaregiverSettings() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><User className="w-5 h-5" /> Profile</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Full Name</Label>
-                            <Input value={profileData.name} onChange={e => setProfileData({ ...profileData, name: e.target.value })} />
+                    <CardContent className="space-y-6">
+                        {/* Profile Picture Upload */}
+                        <div className="flex items-center gap-6">
+                            <div className="relative group">
+                                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-primary/20">
+                                    {profileData.profilePic ? (
+                                        <img src={profileData.profilePic} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User className="w-10 h-10 text-muted-foreground" />
+                                    )}
+                                </div>
+                                <Button
+                                    size="icon"
+                                    variant="secondary"
+                                    className="absolute bottom-0 right-0 w-8 h-8 rounded-full shadow-md"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <User className="w-4 h-4" />
+                                </Button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleFileUpload}
+                                />
+                            </div>
+                            <div>
+                                <h3 className="font-medium text-lg">Profile Picture</h3>
+                                <p className="text-sm text-muted-foreground mb-2">Upload a professional photo (max 5MB)</p>
+                                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                                    Change Photo
+                                </Button>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Email</Label>
-                            <Input value={profileData.email} disabled className="bg-muted" />
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Full Name</Label>
+                                <Input value={profileData.name} onChange={e => setProfileData({ ...profileData, name: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Email</Label>
+                                <Input value={profileData.email} disabled className="bg-muted" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Phone Number</Label>
+                                <Input value={profileData.phone} onChange={e => setProfileData({ ...profileData, phone: e.target.value })} />
+                            </div>
+                            <Button onClick={handleSaveProfile}>Save Profile</Button>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Phone Number</Label>
-                            <Input value={profileData.phone} onChange={e => setProfileData({ ...profileData, phone: e.target.value })} />
-                        </div>
-                        <Button onClick={handleSaveProfile}>Save Profile</Button>
                     </CardContent>
                 </Card>
 
