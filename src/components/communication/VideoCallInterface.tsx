@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { io } from 'socket.io-client';
 
 const getBaseUrl = () => {
-    return '';
+    // Use environment variable or empty string for same-origin
+    return import.meta.env.VITE_API_URL || '';
 };
 
 export function VideoCallInterface() {
@@ -61,11 +62,21 @@ export function VideoCallInterface() {
                 };
 
                 console.log('🎥 Requesting media:', constraints);
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-                setLocalStream(stream);
 
-                if (localVideoRef.current && isVideoCall) {
-                    localVideoRef.current.srcObject = stream;
+                // Try to get media, but don't block if permissions denied
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    setLocalStream(stream);
+
+                    if (localVideoRef.current && isVideoCall) {
+                        localVideoRef.current.srcObject = stream;
+                    }
+                } catch (mediaError: any) {
+                    console.warn('⚠️ Media access denied or unavailable:', mediaError.message);
+                    // Continue without local media - allow receive-only mode
+                    if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
+                        console.log('📵 Permissions denied - continuing in receive-only mode');
+                    }
                 }
 
                 // Create peer connection
@@ -79,11 +90,13 @@ export function VideoCallInterface() {
                 const peerConnection = new RTCPeerConnection(configuration);
                 peerConnectionRef.current = peerConnection;
 
-                // Add local tracks
-                stream.getTracks().forEach(track => {
-                    console.log('➕ Adding track:', track.kind);
-                    peerConnection.addTrack(track, stream!);
-                });
+                // Add local tracks only if stream is available
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        console.log('➕ Adding track:', track.kind);
+                        peerConnection.addTrack(track, stream!);
+                    });
+                }
 
                 // Handle incoming tracks
                 peerConnection.ontrack = (event) => {
