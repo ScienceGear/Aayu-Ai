@@ -189,7 +189,7 @@ Aayu-Ai/
 | **Pranay Tanpure**       | 💻 Full Stack + Android Developer |
 | **Amartya**              | 🎨 UI/UX Designer                 |
 | **Prathamesh Gangawane** | 🔧 Backend & Database             |
-| **Shrikant Gangras**     | ⏰ Alarm & Notification Systems    |
+| **Shrikant Gangras**     | Clock    |
 
 ---
 
