@@ -21,7 +21,8 @@ import {
   Trash2,
   Loader2,
   User,
-  X
+  X,
+  QrCode
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Medicine } from '@/contexts/AppContext';
@@ -62,6 +63,10 @@ export default function Medicines() {
   // Edit Mode State
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // QR Code State
+  const [isQROpen, setIsQROpen] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
 
   // New Medicine Form State
   const [newMedicine, setNewMedicine] = useState({
@@ -226,6 +231,19 @@ export default function Medicines() {
             </h1>
             <p className="text-muted-foreground mt-1">Manage your daily medications</p>
           </div>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const baseUrl = window.location.origin;
+              const medicineUrl = `${baseUrl}/doctor/add-medicine?userId=${user?.id}&token=${btoa(user?.id || '')}`;
+              setQrCodeUrl(medicineUrl);
+              setIsQROpen(true);
+            }}
+          >
+            <QrCode className="w-5 h-5" />
+            Doctor Access QR
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -536,6 +554,73 @@ export default function Medicines() {
               <Button onClick={saveEdit} className="w-full">Save Changes</Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={isQROpen} onOpenChange={setIsQROpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5" />
+              Doctor Medicine Access
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-white p-6 rounded-xl flex flex-col items-center justify-center border-2 border-dashed">
+              {qrCodeUrl ? (
+                <div className="text-center space-y-4">
+                  {/* Real QR Code generated via API */}
+                  <div className="w-64 h-64 bg-white p-2 rounded-xl shadow-inner border flex items-center justify-center relative overflow-hidden group">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeUrl)}`}
+                      alt="Doctor Access QR Code"
+                      className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-semibold mb-1">Scan this QR code with your phone</p>
+                    <p className="text-xs">Doctors can scan to add medicines to your profile</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <Loader2 className="w-12 h-12 mx-auto mb-2 animate-spin" />
+                  <p>Generating QR Code...</p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Or share this link directly:</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={qrCodeUrl}
+                  readOnly
+                  className="text-xs font-mono bg-muted"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(qrCodeUrl);
+                    toast({ title: 'Copied!', description: 'Link copied to clipboard' });
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg text-sm">
+              <p className="text-blue-600 dark:text-blue-400 font-medium mb-1">How it works:</p>
+              <ol className="text-xs space-y-1 text-blue-600/80 dark:text-blue-400/80 list-decimal list-inside">
+                <li>Doctor scans the QR code or opens the link</li>
+                <li>They can view and add medicines to your profile</li>
+                <li>All changes sync instantly to your account</li>
+              </ol>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </ElderLayout>

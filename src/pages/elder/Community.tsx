@@ -22,7 +22,8 @@ import {
     Scissors,
     Box,
     Sparkles,
-    BrainCircuit
+    BrainCircuit,
+    Heart
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -310,14 +311,24 @@ export default function Community() {
     const [selectedChatUser, setSelectedChatUser] = useState<string | null>(null);
     const [messageText, setMessageText] = useState('');
 
+    // List of community groups
+    const communityGroups = [
+        { id: 'GROUP_EVERYONE', name: 'Everyone Community', icon: Sparkles, color: 'bg-purple-500', members: users.length },
+        { id: 'GROUP_ELDERS', name: 'Elders Lounge', icon: Users, color: 'bg-blue-500', members: users.filter(u => u.role === 'elder').length },
+        { id: 'GROUP_CAREGIVERS', name: 'Caregivers Hub', icon: Heart, color: 'bg-green-500', members: users.filter(u => u.role === 'caregiver').length },
+    ];
+
     // Filter other elders
     const otherElders = users.filter(u => u.role === 'elder' && u.id !== user?.id);
 
     // --- Chat Logic ---
-    const chatMessages = messages.filter(
-        m => (m.senderId === user?.id && m.receiverId === selectedChatUser) ||
-            (m.senderId === selectedChatUser && m.receiverId === user?.id)
-    );
+    const chatMessages = messages.filter(m => {
+        if (selectedChatUser?.startsWith('GROUP_')) {
+            return m.receiverId === selectedChatUser;
+        }
+        return (m.senderId === user?.id && m.receiverId === selectedChatUser) ||
+            (m.senderId === selectedChatUser && m.receiverId === user?.id);
+    });
 
     const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -653,264 +664,265 @@ export default function Community() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <TabsList className="w-full justify-start border-b px-2 bg-transparent h-10 shrink-0">
-                        <TabsTrigger value="chat" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-4 gap-2 text-sm">
-                            <MessageSquare className="w-3.5 h-3.5" /> Chat
+                    <TabsList className="grid w-full grid-cols-2 mb-4 shrink-0">
+                        <TabsTrigger value="chat" className="gap-2">
+                            <MessageSquare className="w-4 h-4" /> Direct Chat
                         </TabsTrigger>
-                        <TabsTrigger value="games" className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-full px-4 gap-2 text-sm">
-                            <Gamepad2 className="w-3.5 h-3.5" /> Game Center
+                        <TabsTrigger value="groups" className="gap-2">
+                            <Users className="w-4 h-4" /> Groups
                         </TabsTrigger>
                     </TabsList>
 
                     {/* CHAT TAB */}
-                    <TabsContent value="chat" className="flex-1 flex gap-3 min-h-0 pt-2 pb-0 data-[state=active]:flex overflow-hidden">
-                        {/* Sidebar List */}
-                        <Card className="w-72 flex flex-col border-r-0 shadow-sm shrink-0">
-                            <CardHeader className="p-3 border-b bg-muted/20">
-                                <CardTitle className="text-sm flex items-center gap-2">
-                                    <Users className="w-3.5 h-3.5" /> Friends
-                                    <Badge variant="secondary" className="ml-auto text-xs h-5 px-1.5">{otherElders.length}</Badge>
-                                </CardTitle>
-                            </CardHeader>
-                            <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
-                                {otherElders.map(elder => (
-                                    <button
-                                        key={elder.id}
-                                        onClick={() => setSelectedChatUser(elder.id)}
-                                        className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left
-                                ${selectedChatUser === elder.id
-                                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                                : 'hover:bg-muted/50 text-foreground'}
-                            `}
-                                    >
-                                        <div className="relative">
-                                            <Avatar className="h-8 w-8 border-2 border-background">
-                                                <AvatarImage src={elder.profilePic} />
-                                                <AvatarFallback>{elder.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            {elder.isOnline && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-background rounded-full"></span>}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate text-xs">{elder.name}</p>
-                                            <p className={`text-[10px] truncate ${selectedChatUser === elder.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                                {elder.isOnline ? 'Online' : 'Offline'}
-                                            </p>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </Card>
-
-                        {/* Chat Area */}
-                        <Card className="flex-1 flex flex-col shadow-sm overflow-hidden bg-muted/5 border">
-                            {selectedChatUser ? (
-                                <>
-                                    <div className="p-3 border-b bg-background/50 backdrop-blur flex items-center gap-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarFallback>{users.find(u => u.id === selectedChatUser)?.name[0]}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <h3 className="font-semibold text-sm">{users.find(u => u.id === selectedChatUser)?.name}</h3>
-                                            <p className="text-[10px] text-muted-foreground">Active Now</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-                                        {chatMessages.length === 0 ? (
-                                            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-30">
-                                                <MessageSquare className="w-10 h-10 mb-2" />
-                                                <p className="text-sm">No messages yet</p>
-                                            </div>
-                                        ) : (
-                                            <div className="flex-1" /> /* Spacer to push messages down */
-                                        )}
-                                        {chatMessages.map(msg => (
-                                            <div key={msg.id} className={`flex ${msg.senderId === user?.id ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 shrink-0`}>
-                                                <div className={`max-w-[85%] px-3 py-2 rounded-2xl shadow-sm text-sm ${msg.senderId === user?.id
-                                                    ? 'bg-primary text-primary-foreground rounded-br-none'
-                                                    : 'bg-white dark:bg-zinc-800 border rounded-bl-none'
-                                                    }`}>
-                                                    <p>{msg.content}</p>
-                                                    <p className={`text-[9px] mt-0.5 text-right ${msg.senderId === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <TabsContent value="chat" className="flex-1 overflow-hidden">
+                        <div className="h-full flex gap-3 overflow-hidden">
+                            {/* Sidebar List */}
+                            <Card className="w-full md:w-72 flex flex-col border-r-0 shadow-sm shrink-0">
+                                <CardHeader className="p-3 border-b bg-muted/20">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                        <Users className="w-3.5 h-3.5" /> Direct Chat
+                                        <Badge variant="secondary" className="ml-auto text-xs h-5 px-1.5">{otherElders.length}</Badge>
+                                    </CardTitle>
+                                </CardHeader>
+                                <div className="flex-1 overflow-y-auto p-1.5 space-y-4">
+                                    {/* Groups Section */}
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] uppercase font-bold text-muted-foreground px-2 mb-1">Groups</p>
+                                        {communityGroups.map(group => (
+                                            <button
+                                                key={group.id}
+                                                onClick={() => setSelectedChatUser(group.id)}
+                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left
+                                                    ${selectedChatUser === group.id
+                                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                                        : 'hover:bg-muted/50 text-foreground'}
+                                                `}
+                                            >
+                                                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white ${group.color}`}>
+                                                    <group.icon className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold truncate text-xs">{group.name}</p>
+                                                    <p className={`text-[10px] truncate ${selectedChatUser === group.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                                        {group.members} members
                                                     </p>
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))}
-                                        <div ref={bottomRef} />
                                     </div>
 
-                                    <div className="p-2.5 bg-background border-t flex gap-2 items-end">
-                                        <Input
-                                            placeholder="Type a message..."
-                                            value={messageText}
-                                            onChange={e => setMessageText(e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                                            className="flex-1 h-10 bg-muted/30 border-0 focus-visible:ring-1 text-sm"
-                                        />
-                                        <Button size="icon" className="h-10 w-10 rounded-xl shrink-0" onClick={handleSendMessage}>
-                                            <Send className="w-4 h-4" />
-                                        </Button>
+                                    {/* Friends Section */}
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] uppercase font-bold text-muted-foreground px-2 mb-1">Friends</p>
+                                        {otherElders.map(elder => (
+                                            <button
+                                                key={elder.id}
+                                                onClick={() => setSelectedChatUser(elder.id)}
+                                                className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 text-left
+                                ${selectedChatUser === elder.id
+                                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                                        : 'hover:bg-muted/50 text-foreground'}
+                            `}
+                                            >
+                                                <div className="relative">
+                                                    <Avatar className="h-8 w-8 border-2 border-background">
+                                                        <AvatarImage src={elder.profilePic} />
+                                                        <AvatarFallback>{elder.name[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    {elder.isOnline && <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-background rounded-full"></span>}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold truncate text-xs">{elder.name}</p>
+                                                    <p className={`text-[10px] truncate ${selectedChatUser === elder.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                                        {elder.isOnline ? 'Online' : 'Offline'}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        ))}
                                     </div>
-                                </>
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                                        <MessageSquare className="w-8 h-8 text-muted-foreground/50" />
-                                    </div>
-                                    <h3 className="text-base font-semibold text-foreground">Select a Friend</h3>
-                                    <p className="text-sm">Choose a friend from the list to start chatting</p>
                                 </div>
-                            )}
-                        </Card>
+                            </Card>
+
+                            {/* Chat Area */}
+                            <Card className="flex-1 flex flex-col shadow-sm overflow-hidden bg-muted/5 border">
+                                {selectedChatUser ? (
+                                    <>
+                                        <div className="p-3 border-b bg-background/50 backdrop-blur flex items-center gap-3">
+                                            {selectedChatUser.startsWith('GROUP_') ? (
+                                                <>
+                                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white ${communityGroups.find(g => g.id === selectedChatUser)?.color}`}>
+                                                        {React.createElement(communityGroups.find(g => g.id === selectedChatUser)?.icon || Users, { className: 'w-4 h-4' })}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-sm">{communityGroups.find(g => g.id === selectedChatUser)?.name}</h3>
+                                                        <p className="text-[10px] text-muted-foreground">Community Group</p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarFallback>{users.find(u => u.id === selectedChatUser)?.name[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <h3 className="font-semibold text-sm">{users.find(u => u.id === selectedChatUser)?.name}</h3>
+                                                        <p className="text-[10px] text-muted-foreground">Active Now</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+                                            {chatMessages.length === 0 ? (
+                                                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-30">
+                                                    <MessageSquare className="w-10 h-10 mb-2" />
+                                                    <p className="text-sm">No messages yet</p>
+                                                </div>
+                                            ) : (
+                                                <div className="flex-1" /> /* Spacer to push messages down */
+                                            )}
+                                            {chatMessages.map(msg => (
+                                                <div key={msg.id} className={`flex ${msg.senderId === user?.id ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 shrink-0`}>
+                                                    <div className={`max-w-[85%] px-3 py-2 rounded-2xl shadow-sm text-sm ${msg.senderId === user?.id
+                                                        ? 'bg-primary text-primary-foreground rounded-br-none'
+                                                        : 'bg-white dark:bg-zinc-800 border rounded-bl-none'
+                                                        }`}>
+                                                        <p>{msg.content}</p>
+                                                        <p className={`text-[9px] mt-0.5 text-right ${msg.senderId === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <div ref={bottomRef} />
+                                        </div>
+
+                                        <div className="p-2.5 bg-background border-t flex gap-2 items-end">
+                                            <Input
+                                                placeholder="Type a message..."
+                                                value={messageText}
+                                                onChange={e => setMessageText(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                                                className="flex-1 h-10 bg-muted/30 border-0 focus-visible:ring-1 text-sm"
+                                            />
+                                            <Button size="icon" className="h-10 w-10 rounded-xl shrink-0" onClick={handleSendMessage}>
+                                                <Send className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+                                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                                            <MessageSquare className="w-8 h-8 text-muted-foreground/50" />
+                                        </div>
+                                        <h3 className="text-base font-semibold text-foreground">Select a Friend</h3>
+                                        <p className="text-sm">Choose a friend from the list to start chatting</p>
+                                    </div>
+                                )}
+                            </Card>
+                        </div>
                     </TabsContent>
 
-                    {/* GAMES TAB */}
-                    <TabsContent value="games" className="flex-1 min-h-0 flex flex-col items-center justify-center pt-2 pb-0 data-[state=active]:flex overflow-hidden">
-                        {gameState === 'lobby' && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full max-w-6xl max-h-full overflow-y-auto pr-2 pb-2 content-start">
-                                {/* Game Card: Tic Tac Toe */}
-                                <Card className="hover:border-primary/50 transition-all hover:shadow-md cursor-pointer group flex flex-col bg-card/50">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="flex items-center gap-3">
-                                            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl group-hover:scale-110 transition-transform">
-                                                <Circle className="w-6 h-6 text-blue-600" />
-                                            </div>
-                                            Tic-Tac-Toe
-                                        </CardTitle>
-                                        <CardDescription>Classic strategy game.</CardDescription>
+                    {/* GROUPS TAB */}
+                    <TabsContent value="groups" className="flex-1 overflow-hidden">
+                        <div className="h-full overflow-y-auto p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
+                                {/* All Elders Group */}
+                                <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
+                                    <CardHeader className="pb-3">
+                                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Users className="w-8 h-8 text-blue-600" />
+                                        </div>
+                                        <CardTitle className="text-center text-lg">All Elders</CardTitle>
+                                        <CardDescription className="text-center">
+                                            Connect with all elderly members in the community
+                                        </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex-1 flex flex-col">
-                                        <div className="space-y-4 mt-auto pt-4">
-                                            <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Play vs:</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {otherElders.map(elder => (
-                                                    <Button
-                                                        key={elder.id}
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="text-xs h-7 px-2"
-                                                        onClick={(e) => { e.stopPropagation(); invitePlayer(elder.id, elder.name, 'tic-tac-toe'); }}
-                                                    >
-                                                        {elder.name}
-                                                    </Button>
-                                                ))}
-                                                {otherElders.length === 0 && <span className="text-sm text-muted-foreground italic">No friends online</span>}
+                                    <CardContent className="pt-0">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">Members</span>
+                                                <Badge variant="secondary">{users.filter(u => u.role === 'elder').length}</Badge>
                                             </div>
+                                            <Button
+                                                className="w-full"
+                                                variant="secondary"
+                                                onClick={() => {
+                                                    setSelectedChatUser('GROUP_ELDERS');
+                                                    setActiveTab('chat');
+                                                }}
+                                            >
+                                                <MessageSquare className="w-4 h-4 mr-2" />
+                                                Join Lounge
+                                            </Button>
                                         </div>
                                     </CardContent>
                                 </Card>
 
-                                {/* Game Card: Rock Paper Scissors */}
-                                <Card className="hover:border-primary/50 transition-all hover:shadow-md cursor-pointer group flex flex-col bg-card/50">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="flex items-center gap-3">
-                                            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl group-hover:scale-110 transition-transform">
-                                                <Hand className="w-6 h-6 text-orange-600" />
-                                            </div>
-                                            Rock Paper Scissors
-                                        </CardTitle>
-                                        <CardDescription>Test your luck & mind!</CardDescription>
+                                {/* All Caregivers Group */}
+                                <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
+                                    <CardHeader className="pb-3">
+                                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Heart className="w-8 h-8 text-green-600" />
+                                        </div>
+                                        <CardTitle className="text-center text-lg">All Caregivers</CardTitle>
+                                        <CardDescription className="text-center">
+                                            Connect with all caregivers supporting the community
+                                        </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex-1 flex flex-col">
-                                        <div className="space-y-4 mt-auto pt-4">
-                                            <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Play vs:</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {otherElders.map(elder => (
-                                                    <Button
-                                                        key={elder.id}
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="text-xs h-7 px-2"
-                                                        onClick={(e) => { e.stopPropagation(); invitePlayer(elder.id, elder.name, 'rock-paper-scissors'); }}
-                                                    >
-                                                        {elder.name}
-                                                    </Button>
-                                                ))}
+                                    <CardContent className="pt-0">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">Members</span>
+                                                <Badge variant="secondary">{users.filter(u => u.role === 'caregiver').length}</Badge>
                                             </div>
+                                            <Button
+                                                className="w-full"
+                                                variant="secondary"
+                                                onClick={() => {
+                                                    setSelectedChatUser('GROUP_CAREGIVERS');
+                                                    setActiveTab('chat');
+                                                }}
+                                            >
+                                                <MessageSquare className="w-4 h-4 mr-2" />
+                                                Join Hub
+                                            </Button>
                                         </div>
                                     </CardContent>
                                 </Card>
 
-                                {/* Game Card: Number Guess */}
-                                <Card className="hover:border-primary/50 transition-all hover:shadow-md cursor-pointer group flex flex-col bg-card/50">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="flex items-center gap-3">
-                                            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl group-hover:scale-110 transition-transform">
-                                                <Sparkles className="w-6 h-6 text-purple-600" />
-                                            </div>
-                                            Number Team
-                                        </CardTitle>
-                                        <CardDescription>Co-op guessing game.</CardDescription>
+                                {/* Everyone Group */}
+                                <Card className="hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group">
+                                    <CardHeader className="pb-3">
+                                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Sparkles className="w-8 h-8 text-purple-600" />
+                                        </div>
+                                        <CardTitle className="text-center text-lg">Everyone</CardTitle>
+                                        <CardDescription className="text-center">
+                                            Community-wide group for all elders and caregivers
+                                        </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="flex-1 flex flex-col">
-                                        <div className="space-y-4 mt-auto pt-4">
-                                            <p className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Play vs:</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {otherElders.map(elder => (
-                                                    <Button
-                                                        key={elder.id}
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="text-xs h-7 px-2"
-                                                        onClick={(e) => { e.stopPropagation(); invitePlayer(elder.id, elder.name, 'number-guess'); }}
-                                                    >
-                                                        {elder.name}
-                                                    </Button>
-                                                ))}
+                                    <CardContent className="pt-0">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-muted-foreground">Members</span>
+                                                <Badge variant="secondary">{users.filter(u => u.role === 'elder' || u.role === 'caregiver').length}</Badge>
                                             </div>
+                                            <Button
+                                                className="w-full"
+                                                variant="hero"
+                                                onClick={() => {
+                                                    setSelectedChatUser('GROUP_EVERYONE');
+                                                    setActiveTab('chat');
+                                                }}
+                                            >
+                                                <MessageSquare className="w-4 h-4 mr-2" />
+                                                Enter Group
+                                            </Button>
                                         </div>
                                     </CardContent>
                                 </Card>
                             </div>
-                        )}
-
-                        {gameState === 'waiting' && (
-                            <div className="text-center flex flex-col items-center justify-center h-full animate-in fade-in">
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" />
-                                    <Loader2 className="w-16 h-16 animate-spin text-primary relative z-10" />
-                                </div>
-                                <h2 className="text-2xl font-bold mt-8">Waiting for opponent...</h2>
-                                <p className="text-muted-foreground mt-2">Inviting to {activeGameType}</p>
-                                <Button variant="ghost" className="mt-8" onClick={() => setGameState('lobby')}>Cancel Invite</Button>
-                            </div>
-                        )}
-
-                        {gameState === 'playing' && (
-                            <div className="w-full h-full flex items-center justify-center overflow-y-auto">
-                                {activeGameType === 'tic-tac-toe' && (
-                                    <TicTacToe
-                                        onLeave={() => setGameState('lobby')}
-                                        isMyTurn={tttTurn}
-                                        symbol={tttSymbol}
-                                        board={tttBoard}
-                                        makeMove={makeTttMove}
-                                        winner={tttWinner}
-                                        resetGame={resetTtt}
-                                        opponent={opponent}
-                                    />
-                                )}
-                                {activeGameType === 'rock-paper-scissors' && (
-                                    <RockPaperScissors
-                                        onLeave={() => setGameState('lobby')}
-                                        opponent={opponent}
-                                        sendEvent={sendGameEvent}
-                                        gameState={rpsState}
-                                    />
-                                )}
-                                {activeGameType === 'number-guess' && (
-                                    <NumberGuess
-                                        onLeave={() => setGameState('lobby')}
-                                        sendEvent={(t: string, p: any) => {
-                                            if (t === 'ng_guess') handleNgGuessSend(p.num);
-                                            else sendGameEvent(t, p);
-                                        }}
-                                        gameState={ngState}
-                                    />
-                                )}
-                            </div>
-                        )}
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>

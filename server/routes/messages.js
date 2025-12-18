@@ -7,7 +7,11 @@ const Message = require('../models/Message');
 router.get('/:userId', async (req, res) => {
     try {
         const messages = await Message.find({
-            $or: [{ senderId: req.params.userId }, { receiverId: req.params.userId }]
+            $or: [
+                { senderId: req.params.userId },
+                { receiverId: req.params.userId },
+                { receiverId: { $regex: /^GROUP_/ } }
+            ]
         });
         res.status(200).json(messages);
     } catch (err) {

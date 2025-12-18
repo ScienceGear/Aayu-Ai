@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ElderLayout } from '@/components/layout/ElderLayout';
 import { useApp } from '@/contexts/AppContext';
 import { useTranslation } from '@/lib/translations';
@@ -45,7 +46,8 @@ const moodOptions = [
 ];
 
 export default function ElderDashboard() {
-  const { user, settings, activities, addActivity, removeActivity, toggleActivityStatus, medicines, toggleMedicine } = useApp();
+  const navigate = useNavigate();
+  const { user, settings, activities, addActivity, removeActivity, toggleActivityStatus, medicines, toggleMedicine, addReport } = useApp();
   const t = useTranslation(settings.language);
   const { toast } = useToast();
   const [greeting, setGreeting] = useState('');
@@ -169,6 +171,19 @@ export default function ElderDashboard() {
 
   const handleMoodSelect = (mood: string) => {
     setSelectedMood(mood);
+
+    if (user) {
+      addReport({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        issue: 'Mood Update',
+        painLevel: 0,
+        description: `Patient reported feeling ${mood}.`,
+        date: new Date().toISOString(),
+        status: 'sent'
+      });
+    }
+
     toast({
       title: 'Mood Reported',
       description: `Your caregiver has been notified that you are feeling ${mood}.`,
@@ -287,7 +302,7 @@ export default function ElderDashboard() {
           </Card>
 
           {/* Medicine Reminder Card - NEXT 24HRS List */}
-          <Card variant="elevated" className="max-h-[500px] flex flex-col">
+          <Card variant="elevated" className="max-h-[500px] flex flex-col cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/elder/medicines')}>
             <CardHeader className="pb-2 shrink-0">
               <CardTitle className="flex items-center gap-2">
                 <Pill className="w-5 h-5 text-secondary" />
@@ -413,7 +428,7 @@ export default function ElderDashboard() {
           </div>
 
           {/* New Relax & Meditate Quick Access */}
-          <Card variant="gradient" className="lg:col-span-3">
+          <Card variant="gradient" className="lg:col-span-3 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/elder/meditation')}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2">
                 <Music className="w-5 h-5 text-accent" />
@@ -423,29 +438,29 @@ export default function ElderDashboard() {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Button variant="outline" className="h-auto p-4 flex flex-col gap-2" asChild>
-                  <a href="/elder/garden">
+                  <div onClick={(e) => { e.stopPropagation(); navigate('/elder/meditation'); }}>
                     <Music className="w-8 h-8 text-accent mb-1" />
                     <span className="font-semibold">Play Bhajans</span>
                     <span className="text-xs text-muted-foreground font-normal">Soothe your soul</span>
-                  </a>
+                  </div>
                 </Button>
 
                 <Button variant="outline" className="h-auto p-4 flex flex-col gap-2" asChild>
-                  <a href="/elder/garden">
+                  <div onClick={(e) => { e.stopPropagation(); navigate('/elder/meditation'); }}>
                     <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center mb-1">
                       <div className="w-4 h-4 rounded-full bg-success animate-pulse" />
                     </div>
                     <span className="font-semibold">Breathing</span>
                     <span className="text-xs text-muted-foreground font-normal">Calm anxiety</span>
-                  </a>
+                  </div>
                 </Button>
 
                 <Button variant="outline" className="h-auto p-4 flex flex-col gap-2" asChild>
-                  <a href="/elder/garden">
+                  <div onClick={(e) => { e.stopPropagation(); navigate('/elder/meditation'); }}>
                     <Clock className="w-8 h-8 text-primary mb-1" />
                     <span className="font-semibold">Timer</span>
                     <span className="text-xs text-muted-foreground font-normal">Set meditation time</span>
-                  </a>
+                  </div>
                 </Button>
               </div>
             </CardContent>

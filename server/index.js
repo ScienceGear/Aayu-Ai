@@ -90,7 +90,14 @@ io.on('connection', (socket) => {
     socket.on('send_message', (data) => {
         // data: { senderId, receiverId, content, type, fileUrl ... }
         console.log('Message from', data.senderId, 'to', data.receiverId);
-        io.to(data.receiverId).emit('receive_message', data);
+
+        if (data.receiverId && data.receiverId.startsWith('GROUP_')) {
+            // Group message - broadcast to everyone (filtering will happen on client side)
+            io.emit('receive_message', data);
+        } else {
+            // Direct message - send to specific user room
+            io.to(data.receiverId).emit('receive_message', data);
+        }
     });
 
     // WebRTC Signaling - Complete Implementation

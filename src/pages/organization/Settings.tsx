@@ -107,6 +107,35 @@ export default function OrganizationSettings() {
 
                 <Card>
                     <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Globe className="w-5 h-5" /> AI Configuration</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Gemini API Key</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    type="password"
+                                    placeholder="Enter your Gemini API Key"
+                                    id="gemini-api-key"
+                                    defaultValue={localStorage.getItem('VITE_GEMINI_API_KEY') || ''}
+                                />
+                                <Button onClick={() => {
+                                    const input = document.getElementById('gemini-api-key') as HTMLInputElement;
+                                    if (input.value) {
+                                        localStorage.setItem('VITE_GEMINI_API_KEY', input.value);
+                                        toast({ title: 'API Key Updated', description: 'Gemini API key has been saved successfully.' });
+                                    }
+                                }}>Save</Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-primary underline">Google AI Studio</a>
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Palette className="w-5 h-5" /> Appearance</CardTitle>
                     </CardHeader>
                     <CardContent>

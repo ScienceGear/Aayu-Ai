@@ -15,6 +15,7 @@ import {
   Volume2,
   VolumeX,
   Loader2,
+  Headset,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,13 +39,13 @@ const greetings = [
 ];
 
 import { useApp } from '@/contexts/AppContext';
-import { getGeminiResponse } from '@/lib/gemini';
+import { getGeminiResponse, analyzeMedicineImage } from '@/lib/gemini';
 
 // ... existing interfaces ...
 
 export default function AayuAssistant() {
   const { toast } = useToast();
-  const { user, medicines, activities, settings } = useApp(); // Added settings
+  const { user, medicines, activities, exercises, reports, settings } = useApp(); // Added reports
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -56,11 +57,12 @@ export default function AayuAssistant() {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false); // Default to FALSE to fix "always uses tts"
   const [isLoading, setIsLoading] = useState(false);
   const [cameraMode, setCameraMode] = useState(false);
   const [isConversationMode, setIsConversationMode] = useState(false); // New state for continuous mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Voice State Refs
   const recognitionRef = useRef<any>(null);
@@ -221,20 +223,42 @@ export default function AayuAssistant() {
       // We can still let Gemini respond about the camera
     }
 
-    // Build Context
+    // Build Comprehensive Context
     const myMedicines = medicines.filter(m => m.userId === user?.id);
     const myActivities = activities.filter(a => a.userId === user?.id);
+    const myExercises = (exercises || []).filter(e => e.userId === user?.id);
+    const myReports = (reports || []).filter(r => r.userId === user?.id);
 
     const contextInfo = `
-      User Name: ${user?.name || 'Elder'}
-      Language: ${settings?.language || 'en'}
-      Keep responses brief and conversational for voice interaction.
+      User Profile:
+      - Name: ${user?.name || 'Elder'}
+      - Age: ${user?.age || 'Not specified'}
+      - Gender: ${user?.gender || 'Not specified'}
+      - Height: ${user?.height || 'Not specified'} cm
+      - Weight: ${user?.weight || 'Not specified'} kg
+      - Blood Group: ${user?.bloodGroup || 'Not specified'}
       
-      Current Medicines List:
-      ${myMedicines.map(m => `- ${m.name} (${m.dosage}): ${m.stock} left. Time: ${m.time}`).join('\n')}
+      Current Language: ${settings?.language || 'en'}
       
-      Today's Activities:
-      ${myActivities.map(a => `- ${a.title} at ${a.dueTime} (Status: ${a.completed ? 'Completed' : 'Pending'})`).join('\n')}
+      Health Schedule & Logs:
+      
+      1. Medicines Tracking:
+      ${myMedicines.length > 0 ? myMedicines.map(m => `- ${m.name} (${m.dosage}): ${m.stock} units in stock. Scheduled for: ${m.time}`).join('\n') : 'No medicines scheduled.'}
+      
+      2. Today's Activities:
+      ${myActivities.length > 0 ? myActivities.map(a => `- ${a.title} at ${a.dueTime} (Status: ${a.completed ? 'Completed' : 'Pending'})`).join('\n') : 'No activities scheduled today.'}
+      
+      3. Prescribed Exercises:
+      ${myExercises.length > 0 ? myExercises.map(e => `- ${e.name} (${e.duration}): ${e.instructions} (Status: ${e.completed ? 'Done' : 'Pending'})`).join('\n') : 'No exercises assigned.'}
+
+      4. Recent Health & Mood Reports (last week):
+      ${myReports.length > 0 ? myReports.slice(0, 10).map(r => `- ${new Date(r.date).toLocaleDateString()}: ${r.issue} - ${r.description}`).join('\n') : 'No mood logs or reports found for this week.'}
+
+      Instructions for Aayu:
+      - Keep responses brief and conversational as they are spoken aloud.
+      - Use the context above (especially reports) to answer specific questions about health, mood, or schedule.
+      - If the user asks about how they have been feeling, analyze the reports in section 4.
+      - Be warm and supportive like a family member.
     `;
 
     try {
@@ -254,6 +278,56 @@ export default function AayuAssistant() {
       toast({
         title: "Error",
         description: "Failed to get response from Aayu.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    setCameraMode(false); // Close preview
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: '📸 [Uploaded medicine image for analysis]',
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      const result = await analyzeMedicineImage(file);
+      if (result) {
+        const analysisText = `I have analyzed the medicine image:
+        
+💊 Name: ${result.name}
+⚖️ Dosage: ${result.dosage}
+🕒 Frequency: ${result.frequency}
+🍽️ Instructions: ${result.withFood ? 'Take with food' : 'Can be taken without food'}
+📦 Estimated Stock: ${result.stock} units
+
+What would you like me to do with this information?`;
+
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: analysisText,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+        speakText(analysisText);
+      } else {
+        throw new Error("Analysis failed");
+      }
+    } catch (error) {
+      toast({
+        title: "Analysis Failed",
+        description: "I couldn't identify the medicine. Please ensure the image is clear.",
         variant: "destructive"
       });
     } finally {
@@ -331,19 +405,20 @@ export default function AayuAssistant() {
                   onClick={() => {
                     const newState = !isConversationMode;
                     setIsConversationMode(newState);
-                    if (newState && !isListening) {
-                      toggleListening();
-                    } else if (!newState) {
+                    if (newState) {
+                      // Turn on speaking for conversation mode
+                      setIsSpeaking(true);
+                      if (!isListening) toggleListening();
+                    } else {
                       recognitionRef.current?.stop();
                       synthRef.current?.cancel();
                       setIsListening(false);
                     }
                   }}
-                  className={`rounded-full ${isConversationMode ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-                  title="Continuous Conversation Mode"
+                  className={`rounded-full ${isConversationMode ? 'ring-2 ring-primary ring-offset-2 bg-primary text-primary-foreground' : ''}`}
+                  title="Live Conversation Mode"
                 >
-                  <Volume2 className="w-6 h-6" />
-                  {/* Optionally use a different icon like 'MessageCircle' or 'Activity' to denote 'Live' */}
+                  <Headset className="w-6 h-6" />
                 </Button>
 
                 <Button
@@ -379,9 +454,20 @@ export default function AayuAssistant() {
                       <p className="text-xs text-muted-foreground mt-1">Point at medicine to identify</p>
                     </div>
                   </div>
-                  <Button variant="secondary" className="w-full mt-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleCameraCapture}
+                  />
+                  <Button
+                    variant="secondary"
+                    className="w-full mt-3"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     <Camera className="w-4 h-4 mr-2" />
-                    Capture
+                    Capture / Upload
                   </Button>
                 </div>
               )}

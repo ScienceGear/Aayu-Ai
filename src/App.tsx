@@ -22,6 +22,7 @@ import ElderCommunity from "@/pages/elder/Community";
 import ElderCaregivers from "@/pages/elder/Caregivers"; // Renamed to avoid conflict
 import ElderReports from "@/pages/elder/Reports";
 import Meditation from "@/pages/elder/Meditation";
+import DoctorAddMedicine from "@/pages/doctor/AddMedicine";
 import { IncomingCall } from "@/components/communication/IncomingCall";
 
 // Caregiver Pages
@@ -91,6 +92,10 @@ function AppRoutes() {
       <Route path="/elder/caregivers" element={<ProtectedRoute><ElderCaregivers /></ProtectedRoute>} />
       <Route path="/elder/exercise" element={<ProtectedRoute><Exercise /></ProtectedRoute>} />
       <Route path="/elder/community" element={<ProtectedRoute><ElderCommunity /></ProtectedRoute>} />
+      <Route path="/elder/meditation" element={<ProtectedRoute><Meditation /></ProtectedRoute>} />
+
+      {/* Doctor Routes (Public with token) */}
+      <Route path="/doctor/add-medicine" element={<DoctorAddMedicine />} />
 
       {/* Caregiver Routes */}
       <Route path="/caregiver" element={<ProtectedRoute><CaregiverDashboard /></ProtectedRoute>} />

@@ -105,6 +105,7 @@ type TranslationKeys = {
   caregiverPortal: string;
   orgAdmin: string;
   startVideoCall: string;
+  community: string;
 };
 
 const translations: Record<Language, any> = {
@@ -189,6 +190,7 @@ const translations: Record<Language, any> = {
     caregiverPortal: 'Caregiver Portal',
     orgAdmin: 'Org Admin',
     startVideoCall: 'Start Video Call',
+    community: 'Community',
   },
   hi: {
     appName: 'आयु AI',
@@ -271,6 +273,7 @@ const translations: Record<Language, any> = {
     caregiverPortal: 'देखभालकर्ता पोर्टल',
     orgAdmin: 'संगठन व्यवस्थापक',
     startVideoCall: 'वीडियो कॉल शुरू करें',
+    community: 'समुदाय',
   },
   ta: {
     appName: 'ஆயு AI',
@@ -334,6 +337,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS அவசரநிலை',
     emergencyContacts: 'அவசர தொடர்புகள்',
     callEmergency: 'அவசர அழைப்பு',
+    community: 'சமூக',
   },
   te: {
     appName: 'ఆయు AI',
@@ -397,6 +401,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS అత్యవసరం',
     emergencyContacts: 'అత్యవసర సంప్రదింపులు',
     callEmergency: 'అత్యవసర కాల్',
+    community: 'సంఘం',
   },
   bn: {
     appName: 'আয়ু AI',
@@ -460,6 +465,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS জরুরি',
     emergencyContacts: 'জরুরি যোগাযোগ',
     callEmergency: 'জরুরি কল',
+    community: 'সম্প্রদায়',
   },
   mr: {
     appName: 'आयु AI',
@@ -523,6 +529,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS आणीबाणी',
     emergencyContacts: 'आणीबाणी संपर्क',
     callEmergency: 'आणीबाणी कॉल',
+    community: 'समुदाय',
   },
   gu: {
     appName: 'આયુ AI',
@@ -586,6 +593,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS કટોકટી',
     emergencyContacts: 'કટોકટી સંપર્કો',
     callEmergency: 'કટોકટી કૉલ',
+    community: 'સમુદાય',
   },
   kn: {
     appName: 'ಆಯು AI',
@@ -649,6 +657,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS ತುರ್ತು',
     emergencyContacts: 'ತುರ್ತು ಸಂಪರ್ಕಗಳು',
     callEmergency: 'ತುರ್ತು ಕರೆ',
+    community: 'ಸಮುದಾಯ',
   },
   ml: {
     appName: 'ആയു AI',
@@ -712,6 +721,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS അടിയന്തിരം',
     emergencyContacts: 'അടിയന്തിര ബന്ധങ്ങൾ',
     callEmergency: 'അടിയന്തിര കോൾ',
+    community: 'കമ്മ്യൂണിറ്റി',
   },
   pa: {
     appName: 'ਆਯੂ AI',
@@ -775,6 +785,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS ਐਮਰਜੈਂਸੀ',
     emergencyContacts: 'ਐਮਰਜੈਂਸੀ ਸੰਪਰਕ',
     callEmergency: 'ਐਮਰਜੈਂਸੀ ਕਾਲ',
+    community: 'ਭਾਈਚਾਰਾ',
   },
   or: {
     appName: 'ଆୟୁ AI',
@@ -838,6 +849,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS ଜରୁରୀ',
     emergencyContacts: 'ଜରୁରୀ ସମ୍ପର୍କ',
     callEmergency: 'ଜରୁରୀ କଲ୍',
+    community: 'ସମ୍ପ୍ରଦାୟ',
   },
   as: {
     appName: 'আয়ু AI',
@@ -901,6 +913,7 @@ const translations: Record<Language, any> = {
     sosButton: 'SOS জৰুৰীকালীন',
     emergencyContacts: 'জৰুৰীকালীন যোগাযোগ',
     callEmergency: 'জৰুৰীকালীন কল',
+    community: 'সম্প্ৰদায়',
   },
 };
 
