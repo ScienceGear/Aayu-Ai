@@ -195,7 +195,7 @@ Aayu-Ai/
 
 ## 🏆 Why Aayu AI Stands Out
 
-* 🇮🇳 Built specifically for **Indian elders**
+* ❤️ Accesible and easy to **use**.
 * 🎙️ **Voice-first**, less experience
 * 🌱 **Gamified wellness**, not clinical pressure
 * 🤖 **Emotion-aware AI**, not a robotic chatbot
