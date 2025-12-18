@@ -205,7 +205,7 @@ Aayu-Ai/
 
 <div align="center">
 
-### 💙 Built with care • Powered by AI • Made for India 🇮🇳
+### 💙 Built with care and love
 
 **For a safer, healthier, and happier elder life**
 
