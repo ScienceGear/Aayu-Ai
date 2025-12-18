@@ -1,129 +1,212 @@
-# Aayu AI (Aayu Connect Assist) 🏥🤖👴👵
+# 🏥 Aayu AI – Compassionate Elder Care Platform
 
-> **Your Personal AI Health Companion** - Bridging the gap between elders and caregivers with intelligent health monitoring, multilingual AI assistance, and compassionate care coordination.
+<div align="center">
 
-## 🌟 About
+![Aayu AI](https://img.shields.io/badge/Aayu%20AI-Compassionate%20Elder%20Care-blue?style=for-the-badge&logo=heart)
+![MERN Stack](https://img.shields.io/badge/Stack-MERN-green?style=for-the-badge&logo=mongodb)
+![WebRTC](https://img.shields.io/badge/Calls-WebRTC-orange?style=for-the-badge&logo=webrtc)
+![AI Powered](https://img.shields.io/badge/AI-Gemini%202.0-purple?style=for-the-badge&logo=google)
 
-**Aayu AI** is a comprehensive elder care platform designed to make technology accessible and helpful for the elderly. It acts as a bridge between elders, their families (caregivers), and medical organizations.
+**“Because every elder deserves dignity, safety, and companionship.”** 💙
 
-With a **Baymax-inspired AI assistant**, Aayu AI speaks **10+ Indian languages**, making it easy for elders to interact using just their voice. It manages medicines, tracks health vitals, enables video calls with caregivers, and even provides a virtual garden for relaxation.
+</div>
 
-## ✨ Key Features
+---
 
-- **🤖 AI Health Assistant**: A voice-first, multilingual AI companion that understands health needs and speaks local languages (Hindi, Tamil, Telugu, etc.).
-- **💊 Smart Medicine Management**: Intelligent reminders, prescription scanning with AI, and inventory tracking.
-- **❤️ Health Monitoring**: Easy interfaces for tracking vitals (blood pressure, sugar, etc.) and mood.
-- **🆘 Emergency SOS**: One-tap emergency alerts to family members and caregivers.
-- **🌳 Virtual Garden**: A gamified, therapeutic space for meditation and mindfulness to reduce loneliness.
-- **📹 Caregiver Connect**: Seamless video calls and chat between elders and their assigned caregivers.
-- **🛡️ Multi-Role System**: Dedicated dashboards for **Elders**, **Caregivers**, and **Organizations**.
+## 🌟 Project Vision
 
-## 🛠️ Tech Stack
+**Aayu AI** is a mission-driven eldercare platform designed to bridge the gap between  
+👵👴 **a growing elderly population** and  
+👨‍⚕️👩‍⚕️ **limited caregiving resources**, especially in India.
 
-- **Frontend**: React, Vite, Tailwind CSS, Shadcn UI, Lucide React
-- **Backend**: Node.js, Express, Socket.io (for real-time chat & calls)
-- **Database**: MongoDB (Mongoose)
-- **AI Integration**: Google Gemini AI (Generative AI)
-- **Package Manager**: Bun (compatible with npm)
+Inspired by **Baymax (Big Hero 6)**, Aayu AI acts as a **gentle, voice-first medical and emotional companion**, available 24/7.
 
-## 🚀 Getting Started
+---
 
-Follow these instructions to get the project up and running on your local machine.
+## 🎯 Problem Statement – Senior Care & Medical Support
 
-### Prerequisites
+Senior citizens today face:
 
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [Bun](https://bun.sh/) (Recommended) or npm
-- [MongoDB](https://www.mongodb.com/) (Local or Atlas URL)
+- 💊 **Medication non-adherence** due to complex schedules  
+- 🚨 **Delayed emergency response** during falls or health crises  
+- 😔 **Loneliness & isolation** impacting mental health  
+- 📱 **Tech-phobia** caused by complex, unfriendly apps  
+- 👩‍⚕️ **Shortage of trained caregivers**
 
-### 📥 Installation
+---
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/aayu-connect-assist.git
-   cd aayu-connect-assist-main
-   ```
+## ✨ Our Solution – Aayu AI
 
-2. **Install Dependencies**
-   Since this project uses a merged dependency structure (frontend and backend deps are in the root):
-   ```bash
-   npm install
-   # or
-   bun install
-   ```
+Aayu AI is a **three-role ecosystem** built to ensure **continuous, affordable, and dignified elder care**.
 
-### ⚙️ Environment Configuration
+---
 
-Create a `.env` file in the root directory. You can copy the structure below:
+## 👵 For Elders – Your AI Health Companion
 
-```env
-# Server Configuration
-PORT=3000
+- 🤖 **Baymax-inspired AI Assistant**
+  - Voice-first interaction
+  - Empathetic, caring responses
+  - Ask questions like:
+    - “Which medicine should I take now?”
+    - “What is this tablet for?”
 
-# Database
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/aayu-db
+- 💊 **Smart Medicine Management**
+  - 📸 Scan prescriptions or medicine strips
+  - 🤖 AI extracts dosage & frequency
+  - ⏰ Automatic reminders & refill alerts
 
-# AI API Key (Google Gemini)
-GEMINI_API_KEY=your_gemini_api_key_here
+- 🆘 **Emergency SOS**
+  - One-tap SOS button
+  - Real-time alerts to caregivers & family
+  - Auto voice/video call during emergencies
 
-# JWT Secret (for authentication security)
-JWT_SECRET=your_super_secret_jwt_key
+- 🌱 **Virtual Wellness Garden**
+  - Grow digital plants by:
+    - Taking medicines on time
+    - Drinking water 🥤
+    - Meditating 🧘
+  - Encourages healthy habits through gamification
 
-# Optional: Frontend API URL (if running separately)
-VITE_API_URL=http://localhost:3000
-```
+- 🌍 **Multilingual & Accessible**
+  - 12+ Indian languages 🇮🇳
+  - Large text, high contrast UI
+  - Voice input + text-to-speech
 
-### 🏃‍♂️ Running the App
+---
 
-This project is set up to run both the specific backend server and the React frontend concurrently.
+## 👨‍👩‍👧 For Caregivers – Peace of Mind
 
-**Development Mode:**
-Runs the backend with `nodemon` (auto-restart) and frontend with `vite`.
+- 📊 Real-time elder monitoring
+- 🚨 Instant SOS & health alerts
+- 💬 Chat, 📞 voice & 📹 video calls (WebRTC)
+- 🤖 AI-generated health summaries
+- 📈 Medication adherence & activity tracking
+
+---
+
+## 🏥 For Organizations – Smart Coordination
+
+- 🏢 Centralized dashboard
+- ✅ Caregiver approval & management
+- 🚨 SOS monitoring & response history
+- 📋 Activity logs & elder wellness insights
+
+---
+
+## 🛠️ Technology Architecture
+
+```text
+Frontend (React + Vite + Tailwind)
+        │
+        ▼
+Node.js + Express API
+        │
+        ├── MongoDB (Health & User Data)
+        ├── Socket.io (Real-time SOS & Chat)
+        ├── WebRTC (P2P Voice & Video)
+        └── AI Layer (Gemini 2.0 / ChatGPT)
+````
+
+---
+
+## ⚙️ Tech Stack
+
+| Layer     | Technology                           |
+| --------- | ------------------------------------ |
+| Frontend  | React, Vite, Tailwind CSS, Shadcn UI |
+| Backend   | Node.js, Express                     |
+| Database  | MongoDB (Mongoose)                   |
+| Real-Time | Socket.io                            |
+| Calls     | WebRTC                               |
+| AI        | Google Gemini 2.0 (Vision + Text)    |
+| Hosting   | Railway                              |
+
+---
+
+## 🚀 Installation & Setup
+
+### 🔧 Prerequisites
+
+* Node.js (v18+)
+* MongoDB (Local or Atlas)
+* Openrouter API
+
+### ⚡ Quick Start
+
 ```bash
+git clone https://github.com/ScienceGear/Aayu-Ai.git
+cd Aayu-Ai
+npm install
 npm run dev
 ```
-- Frontend will be available at: `http://localhost:8080` (or `http://localhost:5173 / 5174` depending on availability)
-- Backend will be running at: `http://localhost:3000`
 
-**Production Build:**
-Builds the frontend and runs the server which serves the static files.
-```bash
-npm start
+### 🔐 Environment Variables (`.env`)
+
+```env
+PORT=3000
+MONGODB_URI=your_mongodb_uri
+JWT_SECRET=your_secret_key
+GEMINI_API_KEY=your_gemini_key
+VITE_API_URL=http://localhost:3000
+OPENROUTER_API=
 ```
+
+---
 
 ## 📂 Project Structure
 
 ```
-├── public/              # Static assets
-├── server/              # Backend Node/Express code
-│   ├── models/          # Mongoose Database Models
-│   ├── routes/          # API Routes (auth, users, care, etc.)
-│   └── index.js         # Server entry point
-├── src/                 # Frontend React code
-│   ├── components/      # Reusable UI components
-│   ├── pages/           # Application pages (Landing, Dashboard, etc.)
-│   ├── lib/             # Utilities and helpers
-│   └── App.tsx          # Main React component
-├── package.json         # Project dependencies and scripts
-└── vite.config.ts       # Vite configuration
+Aayu-Ai/
+├── server/          # Node.js + Express backend
+│   ├── models/      # MongoDB schemas
+│   ├── routes/      # APIs
+│   └── index.js     # Server + Socket.io
+├── src/             # React frontend
+│   ├── components/
+│   ├── pages/
+│   ├── contexts/
+│   └── lib/
+├── public/          # Assets (icons, logos)
+└── package.json
 ```
-
-## ☁️ Deployment
-
-This is a **monorepo-style** Full Stack application (MERN). The easiest way to deploy it is as a single web service where the Node.js server serves the React frontend.
-
-### Option 1: Render / Railway / Heroku (Recommended)
-
-1. **Build Scripts**: The `package.json` already has a `start` script (`npm run build && node server/index.js`), which is perfect for these platforms.
-2. **Environment Variables**: Add your `MONGODB_URI`, `GEMINI_API_KEY`, and `JWT_SECRET` in the deployment platform's dashboard.
-3. **Deploy**: Connect your GitHub repo. The platform will automatically run `npm install`, `npm run build`, and then start the server.
-
-### Option 2: Vercel (Frontend Only / Complex)
-
-Since this app uses **Socket.io** for real-time features (like video calls and chat), deploying solely to Vercel (serverless) can be challenging because Vercel Serverless functions don't support persistent WebSocket connections easily.
-
-**Recommendation:** Use **Render** or **Railway** for a seamless full-stack deployment with working video calls and chat.
 
 ---
 
-Made with ❤️ by the Aayu AI Team.
+## 🔐 Security & Performance
+
+* 🔒 **Privacy-first** WebRTC (P2P calls, no media storage)
+* ⚡ **Sub-second SOS latency** using Socket.io
+* ♿ **Accessibility-focused design**
+* 🔠 Adjustable text size & themes (Dark / Light)
+
+---
+
+## 👥 Team
+
+| Name                     | Role                              |
+| ------------------------ | --------------------------------- |
+| **Parth Patil**          | 👑 Team Lead                      |
+| **Pranay Tanpure**       | 💻 Full Stack + Android Developer |
+| **Amartya**              | 🎨 UI/UX Designer                 |
+| **Prathamesh Gangawane** | 🔧 Backend & Database             |
+| **Shrikant Gangras**     | ⏰ Alarm & Notification Systems    |
+
+---
+
+## 🏆 Why Aayu AI Stands Out
+
+* 🇮🇳 Built specifically for **Indian elders**
+* 🎙️ **Voice-first**, less experience
+* 🌱 **Gamified wellness**, not clinical pressure
+* 🤖 **Emotion-aware AI**, not a robotic chatbot
+* 🚑 **Real-time SOS**
+
+---
+
+<div align="center">
+
+### 💙 Built with care • Powered by AI • Made for India 🇮🇳
+
+**For a safer, healthier, and happier elder life**
+
+</div>
